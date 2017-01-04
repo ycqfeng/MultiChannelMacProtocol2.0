@@ -30,7 +30,6 @@ public class Event {
     //运行
     public void run(){
         this.eventInterface.run();
-        Hprint.println("event uid : " + getUid());
     }
 
     //设置接口
