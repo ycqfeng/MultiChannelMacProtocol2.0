@@ -35,7 +35,7 @@ public class Hprint {
         }
         if (hprintNode.isPrintDebugInformation()){
             str = getCurrTime()+str+"--(Debug Info)";
-            System.out.print(str);
+            System.out.println(str);
             return true;
         }
         else {
@@ -50,7 +50,7 @@ public class Hprint {
         }
         if (hprintNode.isPrintErrorInformation()){
             str = getCurrTime()+str+"--(Error Info)";
-            System.out.print(str);
+            System.out.println(str);
             return true;
         }
         else {
@@ -70,7 +70,7 @@ public class Hprint {
         }
         if (hprintNode.isPrintDebugInformation()){
             str +="--(Debug Info)";
-            System.out.print(str);
+            System.out.println(str);
             return true;
         }
         else {
@@ -85,7 +85,7 @@ public class Hprint {
         }
         if (hprintNode.isPrintErrorInformation()){
             str +="--(Error Info)";
-            System.out.print(str);
+            System.out.println(str);
             return true;
         }
         else {

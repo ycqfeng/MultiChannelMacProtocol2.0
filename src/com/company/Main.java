@@ -8,5 +8,7 @@ public class Main {
 	// write your code here
         Simulator.init();
         Simulator.setStopTime(100);
+
+        Simulator.start();
     }
 }

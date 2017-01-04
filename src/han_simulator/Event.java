@@ -30,11 +30,21 @@ public class Event {
     //运行
     public void run(){
         this.eventInterface.run();
+        Hprint.println("event uid : " + getUid());
     }
 
     //设置接口
     public void setEventInterface(IF_Event eventInterface){
         this.eventInterface = eventInterface;
+    }
+
+    public void deleteSelf(){
+        if (this.last != null){
+            this.last.next = this.next;
+        }
+        if (this.next != null){
+            this.next.last = this.last;
+        }
     }
 
     //置空头/尾
