@@ -2,18 +2,22 @@ package han_multiChannelMacProtocol;
 
 import han_simulator.*;
 
+import java.util.Random;
+
 /**
  * Created by ycqfeng on 2017/1/4.
  */
 public class SubChannel implements IF_simulator, IF_HprintNode{
     double bps;
     double delay;
+    Random random;
 
     public SubChannel(){
         Simulator.register(this);
         Hprint.register(this);
         this.bps = 1000;
-        this.delay = 0.0001;
+        this.delay = 1;
+        random = new Random();
     }
 
     public void setBps(double bps){
@@ -27,7 +31,7 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
     public double send(NetDevice from, NetDevice to, Packet packet){
         double trans = getTimeTrans(packet);
         SendToNetDevice toNetDevice = new SendToNetDevice(from, to, this, packet);
-        Simulator.addEvent(delay, toNetDevice);
+        Simulator.addEvent(delay*random.nextDouble(), toNetDevice);
         return trans;
     }
     class SendToNetDevice implements IF_Event{

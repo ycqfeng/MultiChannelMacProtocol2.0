@@ -24,10 +24,10 @@ public class Main {
         Packet packet = new Packet(2000);
         Packet packet1 = new Packet(2000);
         packet.setToNetDevice(netDevice2);
-        packet1.setToNetDevice(netDevice2);
+        packet1.setToNetDevice(netDevice1);
 
         netDevice1.enQueue(packet);
-        //netDevice3.enQueue(packet1);
+        netDevice2.enQueue(packet1);
 
         Simulator.start();
     }

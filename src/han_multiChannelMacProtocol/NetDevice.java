@@ -54,7 +54,10 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
     }
     //包碰撞
     public void collidePacket(Packet packet){
-        Hprint.printlntDebugInfo(this,"NetDevice("+this.getUid()+")中Packet[Packet]("+packet.getUid()+")碰撞");
+        String str = "";
+        str += "NetDevice("+this.getUid()+")碰撞[";
+        str += packet.getPacketType()+"("+packet.getUid()+")]";
+        Hprint.printlntDebugInfo(this,str);
     }
     //接收
     @Override
@@ -76,16 +79,12 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
     public boolean sendRTS(double interTime, NetDevice to){
         Packet packetRTS = new Packet(20*8, PacketType.RTS);
         this.sendPacket(interTime, to, packetRTS);
-        /*NetDeviceSendRTSBegin sendRTSBegin = new NetDeviceSendRTSBegin(this,to,tSubchannel);
-        Simulator.addEvent(interTime, sendRTSBegin);*/
         return true;
     }
     //发送CTS
     public boolean sendCTS(double interTime, NetDevice to){
         Packet packetCTS = new Packet(20*8, PacketType.CTS);
         this.sendPacket(interTime, to, packetCTS);
-        /*NetDeviceSendCTSBegin sendCTSBegin = new NetDeviceSendCTSBegin(this, to, tSubchannel);
-        Simulator.addEvent(interTime, sendCTSBegin);*/
         return true;
     }
     //临时函数
@@ -113,6 +112,7 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
         @Override
         public void run(){
             if (netDevice.tSubChannelOccupy > 0){
+                Hprint.printlnt("backoff");
                 double t = netDevice.backOff.getBackOffTime();
                 NetDeviceSendPacketBegin sendPacketBegin = new NetDeviceSendPacketBegin(netDevice, to, subChannel, packet);
                 Simulator.addEvent(t, sendPacketBegin);
@@ -121,8 +121,8 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
             String str = "";
             str += "NetDevice("+netDevice.getUid()+")开始发送一个[";
             str += packet.getPacketType()+"("+packet.getUid()+")]";
-            netDevice.state = StateNetDevice.TRANSMISSION;
             Hprint.printlntDebugInfo(netDevice,str);
+            netDevice.state = StateNetDevice.TRANSMISSION;
             double trans = subChannel.send(netDevice, to, packet);
             NetDeviceSendPacketEnd sendPacketEnd = new NetDeviceSendPacketEnd(netDevice, to, subChannel, packet);
             Simulator.addEvent(trans, sendPacketEnd);
@@ -146,55 +146,25 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
         public void run() {
             netDevice.backOff.init();
             netDevice.state = StateNetDevice.IDLE;
+            switch (packet.getPacketType()){
+                case PACKET:
+                    break;
+                case RTS:
+                    netDevice.isWaitForCTS = true;
+                    break;
+                case CTS:
+                    break;
+                case OTHER:
+                    break;
+                default:
+                    break;
+            }
             String str = "";
             str += "NetDevice("+netDevice.getUid()+")完成发送一个[";
             str += packet.getPacketType()+"("+packet.getUid()+")]";
             Hprint.printlntDebugInfo(netDevice, str);
         }
     }
-    //开始发送CTS
-    /*class NetDeviceSendCTSBegin implements IF_Event{
-        NetDevice netDevice;
-        NetDevice to;
-        SubChannel subChannel;
-        Packet packet;
-
-        public NetDeviceSendCTSBegin(NetDevice netDevice, NetDevice to, SubChannel subChannel){
-            this.netDevice = netDevice;
-            this.to = to;
-            this.subChannel = subChannel;
-            this.packet = new Packet(20*8, PacketType.CTS);
-        }
-
-        @Override
-        public void run(){
-            netDevice.state = StateNetDevice.TRANSMISSION;
-            Hprint.printlntDebugInfo(netDevice,"NetDevice("+netDevice.getUid()+")开始发送一个Packet[CTS]("+packet.getUid()+")");
-            double trans = subChannel.send(netDevice, to, packet);
-            NetDeviceSendCTSEnd sendCTSEnd = new NetDeviceSendCTSEnd(netDevice, to, subChannel, packet);
-            Simulator.addEvent(trans, sendCTSEnd);
-        }
-    }
-    //结束发送CTS
-    class NetDeviceSendCTSEnd implements IF_Event{
-        NetDevice netDevice;
-        NetDevice to;
-        SubChannel subChannel;
-        Packet packet;
-
-        public NetDeviceSendCTSEnd(NetDevice netDevice, NetDevice to, SubChannel subChannel, Packet packet){
-            this.netDevice = netDevice;
-            this.to = to;
-            this.subChannel = subChannel;
-            this.packet = packet;
-        }
-
-        @Override
-        public void run(){
-            netDevice.state = StateNetDevice.IDLE;
-            Hprint.printlntDebugInfo(netDevice,"NetDevice("+netDevice.getUid()+")完成发送一个Packet[CTS]("+packet.getUid()+")");
-        }
-    }*/
     //开始接收
     class NetDeviceReceiveBegin implements IF_Event{
         NetDevice from;
@@ -210,15 +180,26 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
         }
         @Override
         public void run(){
-            if (netDevice.state != StateNetDevice.IDLE){
-                if (netDevice.state == StateNetDevice.RECEVING){
+            switch (netDevice.state){
+                case IDLE:
+                    break;
+                case RECEVING:
                     netDevice.numReceiving++;
                     netDevice.isCollision = true;
                     NetDeviceReceiveEnd receiveEnd = new NetDeviceReceiveEnd(from, netDevice, subChannel, packet);
                     double trans = subChannel.getTimeTrans(packet);
                     Simulator.addEvent(trans,receiveEnd);
-                }
-                return;
+                    return;
+                case TRANSMISSION:
+                    String str = "";
+                    str += "NetDevice("+netDevice.getUid()+")["+netDevice.state+"],不能收[";
+                    str += packet.getPacketType()+"("+packet.getUid()+")]";
+                    Hprint.printlntDebugInfo(netDevice, str);
+                    return;
+                case WAITING:
+                    break;
+                default:
+                    break;
             }
             netDevice.state = StateNetDevice.RECEVING;
             netDevice.numReceiving++;
@@ -252,17 +233,19 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
                 netDevice.collidePacket(packet);
             }
             else{
+                String str = "";
+                str += "NetDevice("+netDevice.getUid()+")收到一个[";
+                str += packet.getPacketType()+"("+packet.getUid()+")]";
+                Hprint.printlntDebugInfo(netDevice, str);
                 switch (packet.getPacketType()){
                     case PACKET:
-                        Hprint.printlntDebugInfo(netDevice, "NetDevice("+netDevice.getUid()+")收到一个Packet[Packet]("+packet.getUid()+")");
                         break;
                     case RTS:
                         sendCTS(0, from);
-                        Hprint.printlntDebugInfo(netDevice, "NetDevice("+netDevice.getUid()+")收到一个Packet[RTS]("+packet.getUid()+")");
                         break;
                     case CTS:
-                        Hprint.printlntDebugInfo(netDevice, "NetDevice("+netDevice.getUid()+")收到一个Packet[CTS]("+packet.getUid()+")");
                         Hprint.printlntDebugInfo(netDevice, ""+netDevice.state);
+                        Hprint.printlntDebugInfo(netDevice, ""+netDevice.isWaitForCTS);
                         if (netDevice.isWaitForCTS){
                             if (netDevice.nextSendPacket != null){
                                 netDevice.sendPacket(0, from, netDevice.nextSendPacket);
@@ -282,43 +265,4 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
             }
         }
     }
-    //开始RTS发送
-    /*class NetDeviceSendRTSBegin implements IF_Event{
-        NetDevice netDevice;
-        NetDevice to;
-        SubChannel subChannel;
-        Packet packet;
-
-        public NetDeviceSendRTSBegin(NetDevice netDevice, NetDevice to, SubChannel subChannel){
-            this.netDevice = netDevice;
-            this.to = to;
-            this.subChannel = subChannel;
-            this.packet = new Packet(20*8, PacketType.RTS);
-        }
-
-        @Override
-        public void run(){
-            netDevice.state = StateNetDevice.TRANSMISSION;
-            Hprint.printlntDebugInfo(netDevice,"NetDevice("+netDevice.getUid()+")开始发送一个Packet[RTS]("+packet.getUid()+")");
-            double trans = subChannel.send(netDevice, to, packet);
-            NetDeviceSendRTSEnd sendRTSEnd = new NetDeviceSendRTSEnd(netDevice, packet);
-            Simulator.addEvent(trans, sendRTSEnd);
-        }
-    }
-    //结束RTS发送
-    class NetDeviceSendRTSEnd implements IF_Event{
-        NetDevice netDevice;
-        Packet packet;
-
-        public NetDeviceSendRTSEnd(NetDevice from, Packet packet){
-            this.netDevice = from;
-            this.packet = packet;
-        }
-        @Override
-        public void run(){
-            netDevice.state = StateNetDevice.IDLE;
-            netDevice.isWaitForCTS = true;
-            Hprint.printlntDebugInfo(netDevice, "NetDevice("+netDevice.getUid()+")完成发送一个Packet[RTS]("+packet.getUid()+")");
-        }
-    }*/
 }
