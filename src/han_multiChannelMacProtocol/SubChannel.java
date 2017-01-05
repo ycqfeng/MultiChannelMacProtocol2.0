@@ -24,25 +24,27 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
         return packet.getLength()/this.bps;
     }
 
-    public double send(Packet packet, NetDevice netDevice){
+    public double send(NetDevice from, NetDevice to, Packet packet){
         double trans = getTimeTrans(packet);
-        SendToNetDevice toNetDevice = new SendToNetDevice(this,netDevice, packet);
+        SendToNetDevice toNetDevice = new SendToNetDevice(from, to, this, packet);
         Simulator.addEvent(delay, toNetDevice);
         return trans;
     }
     class SendToNetDevice implements IF_Event{
+        NetDevice from;
         NetDevice to;
         Packet packet;
         SubChannel subChannel;
 
-        public SendToNetDevice(SubChannel subChannel, NetDevice to, Packet packet){
+        public SendToNetDevice(NetDevice from, NetDevice to, SubChannel subChannel, Packet packet){
+            this.from = from;
             this.to = to;
             this.subChannel = subChannel;
             this.packet = packet;
         }
         @Override
         public void run(){
-            this.to.receive(this.subChannel, packet);
+            this.to.receive(from, to, subChannel, packet);
         }
     }
 }

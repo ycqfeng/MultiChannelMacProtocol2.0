@@ -8,12 +8,19 @@ public class Packet {
     private int uid;
     private PacketType packetType;
     private int length;
+    private NetDevice to;
 
     //构造函数
     public Packet(){
         this.uid = uidBase++;
         this.packetType = PacketType.PACKET;
         this.length = 1;
+    }
+    public void setToNetDevice(NetDevice to){
+        this.to = to;
+    }
+    public NetDevice getToNetDevice(){
+        return to;
     }
     public Packet(int length){
         this.uid = uidBase++;

@@ -1,6 +1,8 @@
 package com.company;
 
 import han_multiChannelMacProtocol.NetDevice;
+import han_multiChannelMacProtocol.Packet;
+import han_multiChannelMacProtocol.PacketType;
 import han_multiChannelMacProtocol.SubChannel;
 import han_simulator.Simulator;
 
@@ -18,7 +20,10 @@ public class Main {
         netDevice1.settSubchannel(subChannel);
         netDevice2.settSubchannel(subChannel);
 
-        netDevice1.sendRTS(netDevice2);
+        Packet packet = new Packet(2000);
+        packet.setToNetDevice(netDevice2);
+
+        netDevice1.enQueue(packet);
 
         Simulator.start();
     }

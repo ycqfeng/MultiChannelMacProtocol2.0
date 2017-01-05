@@ -20,6 +20,7 @@ public class Simulator implements IF_HprintNode{
     public static void init(){
         simulator = new Simulator();
         Hprint.register(simulator);
+        Hprint.printlnt("仿真器完成初始化");
         simulator.curTime = 0;
         simulator.stopTime = 0;
     }
@@ -148,7 +149,7 @@ public class Simulator implements IF_HprintNode{
             @Override
             public void run(){
                 simulator.executeFinish = false;
-                Hprint.printlntDebugInfo(simulator, "仿真器运行中。");
+                Hprint.printlntDebugInfo(simulator, "仿真器开始运行");
                 if (simulator.interfaces != null){
                     for (int i = 0 ; i < simulator.interfaces.length ; i++){
                         simulator.interfaces[i].simulatorStart();
