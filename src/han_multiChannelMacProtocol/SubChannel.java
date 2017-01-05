@@ -8,6 +8,10 @@ import java.util.Random;
  * Created by ycqfeng on 2017/1/4.
  */
 public class SubChannel implements IF_simulator, IF_HprintNode{
+    /**
+     * 信道需要修改，信道没有存储设备的信息，所以设备的发送只能传送到目标设备，其他设备检测不到。
+     */
+
     double bps;
     double delay;
     Random random;

@@ -180,35 +180,42 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
         }
         @Override
         public void run(){
+            //信道占用自降
+            class SubChannelSelfDe implements IF_Event{
+                NetDevice netDevice;
+                public SubChannelSelfDe(NetDevice netDevice){
+                    this.netDevice = netDevice;
+                }
+                @Override
+                public void run(){
+                    netDevice.tSubChannelOccupy--;
+                }
+            }
+
+
             switch (netDevice.state){
                 case IDLE:
+                    netDevice.numReceiving++;
+                    netDevice.isCollision = false;
                     break;
                 case RECEVING:
                     netDevice.numReceiving++;
                     netDevice.isCollision = true;
-                    NetDeviceReceiveEnd receiveEnd = new NetDeviceReceiveEnd(from, netDevice, subChannel, packet);
-                    double trans = subChannel.getTimeTrans(packet);
-                    Simulator.addEvent(trans,receiveEnd);
-                    return;
+                    break;
                 case TRANSMISSION:
+                    SubChannelSelfDe selfDe = new SubChannelSelfDe(netDevice);
+                    double t = subChannel.getTimeTrans(packet);
+                    Simulator.addEvent(t, selfDe);
                     String str = "";
                     str += "NetDevice("+netDevice.getUid()+")["+netDevice.state+"],不能收[";
                     str += packet.getPacketType()+"("+packet.getUid()+")]";
                     Hprint.printlntDebugInfo(netDevice, str);
                     return;
-                case WAITING:
-                    break;
                 default:
                     break;
             }
             netDevice.state = StateNetDevice.RECEVING;
-            netDevice.numReceiving++;
-            if (netDevice.numReceiving == 1){
-                netDevice.isCollision = false;
-            }
-            else{
-                netDevice.isCollision = true;
-            }
+            netDevice.tSubChannelOccupy ++;
             NetDeviceReceiveEnd receiveEnd = new NetDeviceReceiveEnd(from, netDevice, subChannel, packet);
             double trans = subChannel.getTimeTrans(packet);
             Simulator.addEvent(trans, receiveEnd);
@@ -260,6 +267,7 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
                 }
             }
             netDevice.numReceiving--;
+            netDevice.tSubChannelOccupy--;
             if (netDevice.numReceiving == 0){
                 netDevice.state = StateNetDevice.IDLE;
             }
