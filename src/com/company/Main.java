@@ -22,11 +22,7 @@ public class Main {
         Hprint.register(macProtocol);
         macProtocol.setSubChannel(subChannel);
 
-        Packet packet = new Packet(100, PacketType.PACKET);
-        packet.setSourceUid(0);
-        packet.setDestinationUid(1);
-
-        macProtocol.enQueue(packet);
+        macProtocol.sendRTS();
 
         Simulator.start();
         /*Simulator.init();
