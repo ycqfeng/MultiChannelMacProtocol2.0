@@ -8,9 +8,9 @@ import java.util.Random;
  * Created by ycqfeng on 2017/1/4.
  */
 public class SubChannel implements IF_simulator, IF_HprintNode{
-    /**
-     * 信道需要修改，信道没有存储设备的信息，所以设备的发送只能传送到目标设备，其他设备检测不到。
-     */
+    private static int uidBase = 0;
+
+    private int uid;
 
     double bps;
     double delay;
@@ -19,11 +19,20 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
     IF_Channel[] devices;
 
     public SubChannel(){
+        this.uid = uidBase++;
         Simulator.register(this);
         Hprint.register(this);
         this.bps = 1000;
         this.delay = 0.1;
         random = new Random();
+    }
+
+    public int getUid(){
+        return uid;
+    }
+
+    public String getStringUid(){
+        return "SubChannel("+uid+")";
     }
 
     public void register(IF_Channel device){

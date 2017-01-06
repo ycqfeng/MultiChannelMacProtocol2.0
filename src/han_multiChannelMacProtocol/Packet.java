@@ -6,8 +6,11 @@ package han_multiChannelMacProtocol;
 public class Packet {
     private static int uidBase = 0;
     private int uid;
-    private PacketType packetType;
-    private int length;
+
+    private PacketType packetType;//类型
+    private int length;//长度
+    private int sourceUid;
+    private int destinationUid;
     private NetDevice to;
 
     //构造函数
@@ -34,6 +37,24 @@ public class Packet {
     }
 
     //setter and getter
+    public void setSourceUid(int sourceUid){
+        this.sourceUid = sourceUid;
+    }
+    public void setDestinationUid(int destinationUid){
+        this.destinationUid = destinationUid;
+    }
+    public int getSourceUid(){
+        return sourceUid;
+    }
+    public int getDestinationUid(){
+        return destinationUid;
+    }
+    public String getStringUid(){
+        String str = "";
+        str += "Packet["+this.packetType+"](";
+        str += this.uid+")";
+        return str;
+    }
     public void setPacketType(PacketType type){
         this.packetType = type;
     }

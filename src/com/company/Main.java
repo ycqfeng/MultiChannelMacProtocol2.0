@@ -1,16 +1,35 @@
 package com.company;
 
-import han_multiChannelMacProtocol.NetDevice;
-import han_multiChannelMacProtocol.Packet;
-import han_multiChannelMacProtocol.SubChannel;
+import han_multiChannelMacProtocol.*;
+import han_simulator.Hprint;
 import han_simulator.IF_Event;
 import han_simulator.Simulator;
+
+import javax.crypto.Mac;
 
 public class Main {
 
     public static void main(String[] args) {
 	// write your code here
-        Simulator.init();
+        Simulator.init();;
+        Simulator.setStopTime(100);
+
+        SubChannel subChannel = new SubChannel();
+        Simulator.register(subChannel);
+
+        MacProtocol macProtocol = new MacProtocol();
+        Simulator.register(macProtocol);
+        Hprint.register(macProtocol);
+        macProtocol.setSubChannel(subChannel);
+
+        Packet packet = new Packet(100, PacketType.PACKET);
+        packet.setSourceUid(0);
+        packet.setDestinationUid(1);
+
+        macProtocol.enQueue(packet);
+
+        Simulator.start();
+        /*Simulator.init();
         Simulator.setStopTime(100);
 
         NetDevice netDevice1 = new NetDevice();
@@ -49,6 +68,6 @@ public class Main {
         Simulator.addEvent(0,ab1);
         Simulator.addEvent(0.2, ab2);
 
-        Simulator.start();
+        Simulator.start();*/
     }
 }
