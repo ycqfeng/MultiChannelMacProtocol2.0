@@ -52,7 +52,7 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
         for (int i = 0 ; i < this.devices.length ; i++){
             if (this.devices[i] != from){
                 SendToNetDevice toNetDevice = new SendToNetDevice(from, this.devices[i], this, packet);
-                Simulator.addEvent(delay+0.1*random.nextDouble(), toNetDevice);
+                Simulator.addEvent(delay+0.04*random.nextDouble(), toNetDevice);
             }
         }
         return trans;

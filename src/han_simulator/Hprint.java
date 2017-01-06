@@ -25,8 +25,31 @@ public class Hprint {
             }
         }
     }
+    public static void setPrintLogicInformation(IF_HprintNode node, boolean state){
+        for (int i = 0 ; i < hprint.nodes.length ; i++){
+            if (hprint.nodes[i].getInstance() == node){
+                hprint.nodes[i].setPrintLogicInformation(state);
+                return;
+            }
+        }
+    }
 
     //打印带时间
+    public static boolean printlntLogicInfo(IF_HprintNode instance, String str){
+        HprintNode hprintNode = getHprintNode(instance);
+        if (hprintNode == null){
+            error_unRegister(instance);
+            return false;
+        }
+        if (hprintNode.isPrintLogicInformation()){
+            str = getCurrTime()+str+"--(Logic Info)";
+            System.out.println(str);
+            return true;
+        }
+        else{
+            return false;
+        }
+    }
     public static boolean printlntDebugInfo(IF_HprintNode instance, String str){
         HprintNode hprintNode = getHprintNode(instance);
         if (hprintNode == null){
@@ -62,6 +85,21 @@ public class Hprint {
         System.out.println(str);
     }
     //打印不带时间
+    public static boolean printlnLogicInfo(IF_HprintNode instance, String str){
+        HprintNode hprintNode = getHprintNode(instance);
+        if (hprintNode == null){
+            error_unRegister(instance);
+            return false;
+        }
+        if (hprintNode.isPrintLogicInformation()){
+            str += "--(Logic Info)";
+            System.out.println(str);
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
     public static boolean printlnDebugInfo(IF_HprintNode instance, String str){
         HprintNode hprintNode = getHprintNode(instance);
         if (hprintNode == null){

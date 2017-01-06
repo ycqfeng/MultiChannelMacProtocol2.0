@@ -8,11 +8,13 @@ public class HprintNode {
 
     private boolean isPrintErrorInformation;
     private boolean isPrintDebugInformation;
+    private boolean isPrintLogicInformation;
 
     public HprintNode(IF_HprintNode instance){
         this.instance = instance;
         isPrintErrorInformation = true;
         isPrintDebugInformation = true;
+        isPrintLogicInformation = false;
     }
 
     public IF_HprintNode getInstance(){
@@ -22,6 +24,7 @@ public class HprintNode {
     public void setPrintALL(boolean state){
         this.isPrintErrorInformation = state;
         this.isPrintDebugInformation = state;
+        this.isPrintLogicInformation = state;
     }
 
     //设置
@@ -31,11 +34,17 @@ public class HprintNode {
     public void setPrintDebugInformation(boolean isPrintDebugInformation){
         this.isPrintDebugInformation = isPrintDebugInformation;
     }
+    public void setPrintLogicInformation(boolean isPrintDebugInformation){
+        this.isPrintLogicInformation = isPrintDebugInformation;
+    }
     //获取
     public boolean isPrintErrorInformation(){
         return this.isPrintErrorInformation;
     }
     public boolean isPrintDebugInformation(){
         return this.isPrintDebugInformation;
+    }
+    public boolean isPrintLogicInformation() {
+        return this.isPrintLogicInformation;
     }
 }

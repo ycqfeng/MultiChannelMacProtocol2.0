@@ -7,6 +7,7 @@ import han_simulator.*;
  */
 public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
     private static int uidBase = 0;
+    private static int RTSReTrans = 3;
     private int uid;
     private StateNetDevice state;//设备状态
     private BackOff backOff;
@@ -15,6 +16,8 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
     private int numReceiving;
     private Packet nextSendPacket;
     private PacketQueue queue;
+    private Timer timer;
+    private int numRTSReTrans;
 
     SubChannel tSubchannel;//临时信道
     int tSubChannelOccupy;//临时信道占用情况
@@ -28,6 +31,7 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
         this.state = StateNetDevice.IDLE;
         this.numReceiving = 0;
         this.backOff = new BackOff(0.001);
+        this.timer = new Timer();
     }
     //获取Uid
     public int getUid(){
@@ -131,8 +135,7 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
                 str += "NetDevice("+netDevice.getUid()+") 发送 [";
                 str += packet.getPacketType()+"("+packet.getUid()+")]";
                 str += "退避 "+t+"秒";
-                Hprint.printlntDebugInfo(netDevice, str);
-                //Hprint.printlnt("backoff");
+                Hprint.printlntLogicInfo(netDevice, str);
                 NetDeviceSendPacketBegin sendPacketBegin = new NetDeviceSendPacketBegin(netDevice, to, subChannel, packet);
                 Simulator.addEvent(t, sendPacketBegin);
                 return;
@@ -170,6 +173,25 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
                 case PACKET:
                     break;
                 case RTS:
+                    netDevice.timer.setTimer(0.5, new IF_Event() {
+                        @Override
+                        public void run() {
+                            String str = "";
+                            if (numRTSReTrans++ <= NetDevice.RTSReTrans){
+                                str += "NetDevice("+netDevice.getUid()+")";
+                                str += "触发重发[RTS]->NetDevice("+to.getUid()+")";
+                                Hprint.printlntDebugInfo(netDevice,str);
+                                sendRTS(0, to);
+                            }
+                            else{
+                                str += "NetDevice("+netDevice.getUid()+")";
+                                str += "[RTS]重发上限";
+                                Hprint.printlntDebugInfo(netDevice,str);
+                                numRTSReTrans = 0;
+                            }
+                        }
+                    });
+
                     netDevice.isWaitForCTS = true;
                     break;
                 case CTS:
@@ -264,6 +286,7 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
                         break;
                     case CTS:
                         if (netDevice.isWaitForCTS){
+                            timer.cancel();
                             if (netDevice.nextSendPacket != null){
                                 netDevice.sendPacket(0, from, netDevice.nextSendPacket);
                             }
