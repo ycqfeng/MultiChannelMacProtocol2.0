@@ -61,11 +61,22 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
     }
     //接收
     @Override
-    public boolean receive(NetDevice frome, NetDevice to, SubChannel subChannel, Packet packet){
-        if (to.getUid() == this.getUid()){
-            NetDeviceReceiveBegin receiveBegin = new NetDeviceReceiveBegin(frome, this, subChannel, packet);
+    public boolean receive(NetDevice from, NetDevice to, SubChannel subChannel, Packet packet){
+        if (packet.getToNetDevice().getUid() == this.getUid()){
+            NetDeviceReceiveBegin receiveBegin = new NetDeviceReceiveBegin(from, this, subChannel, packet);
             Simulator.addEvent(0, receiveBegin);
             return true;
+        }
+        else{
+            this.tSubChannelOccupy++;
+            SubChannelSelfDe selfDe = new SubChannelSelfDe(this, from);
+            double t = subChannel.getTimeTrans(packet);
+            Simulator.addEvent(t, selfDe);
+            String str = "";
+            str += "NetDevice("+this.getUid()+") 信道被占用";
+            str += "by["+packet.getPacketType()+"("+packet.getUid()+")]";
+            str += ", NetDevice("+from.getUid()+")->NetDevice("+packet.getToNetDevice().getUid()+")";
+            Hprint.printlntDebugInfo(this, str);
         }
         return false;
     }
@@ -78,12 +89,14 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
     //发送RTS
     public boolean sendRTS(double interTime, NetDevice to){
         Packet packetRTS = new Packet(20*8, PacketType.RTS);
+        packetRTS.setToNetDevice(to);
         this.sendPacket(interTime, to, packetRTS);
         return true;
     }
     //发送CTS
     public boolean sendCTS(double interTime, NetDevice to){
         Packet packetCTS = new Packet(20*8, PacketType.CTS);
+        packetCTS.setToNetDevice(to);
         this.sendPacket(interTime, to, packetCTS);
         return true;
     }
@@ -111,16 +124,23 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
 
         @Override
         public void run(){
+            String str;
             if (netDevice.tSubChannelOccupy > 0){
-                Hprint.printlnt("backoff");
                 double t = netDevice.backOff.getBackOffTime();
+                str = "";
+                str += "NetDevice("+netDevice.getUid()+") 发送 [";
+                str += packet.getPacketType()+"("+packet.getUid()+")]";
+                str += "退避 "+t+"秒";
+                Hprint.printlntDebugInfo(netDevice, str);
+                //Hprint.printlnt("backoff");
                 NetDeviceSendPacketBegin sendPacketBegin = new NetDeviceSendPacketBegin(netDevice, to, subChannel, packet);
                 Simulator.addEvent(t, sendPacketBegin);
                 return;
             }
-            String str = "";
-            str += "NetDevice("+netDevice.getUid()+")开始发送一个[";
+            str = "";
+            str += "NetDevice("+netDevice.getUid()+") 开始发送 [";
             str += packet.getPacketType()+"("+packet.getUid()+")]";
+            str += "->NetDevice("+to.getUid()+")";
             Hprint.printlntDebugInfo(netDevice,str);
             netDevice.state = StateNetDevice.TRANSMISSION;
             double trans = subChannel.send(netDevice, to, packet);
@@ -160,8 +180,9 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
                     break;
             }
             String str = "";
-            str += "NetDevice("+netDevice.getUid()+")完成发送一个[";
+            str += "NetDevice("+netDevice.getUid()+") 完成发送 [";
             str += packet.getPacketType()+"("+packet.getUid()+")]";
+            str += "->NetDevice("+to.getUid()+")";
             Hprint.printlntDebugInfo(netDevice, str);
         }
     }
@@ -180,17 +201,7 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
         }
         @Override
         public void run(){
-            //信道占用自降
-            class SubChannelSelfDe implements IF_Event{
-                NetDevice netDevice;
-                public SubChannelSelfDe(NetDevice netDevice){
-                    this.netDevice = netDevice;
-                }
-                @Override
-                public void run(){
-                    netDevice.tSubChannelOccupy--;
-                }
-            }
+
 
 
             switch (netDevice.state){
@@ -203,7 +214,7 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
                     netDevice.isCollision = true;
                     break;
                 case TRANSMISSION:
-                    SubChannelSelfDe selfDe = new SubChannelSelfDe(netDevice);
+                    SubChannelSelfDe selfDe = new SubChannelSelfDe(netDevice, from);
                     double t = subChannel.getTimeTrans(packet);
                     Simulator.addEvent(t, selfDe);
                     String str = "";
@@ -242,7 +253,8 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
             else{
                 String str = "";
                 str += "NetDevice("+netDevice.getUid()+")收到一个[";
-                str += packet.getPacketType()+"("+packet.getUid()+")]";
+                str += packet.getPacketType()+"("+packet.getUid()+")] from ";
+                str += "NetDevice("+ from.getUid()+")";
                 Hprint.printlntDebugInfo(netDevice, str);
                 switch (packet.getPacketType()){
                     case PACKET:
@@ -251,8 +263,6 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
                         sendCTS(0, from);
                         break;
                     case CTS:
-                        Hprint.printlntDebugInfo(netDevice, ""+netDevice.state);
-                        Hprint.printlntDebugInfo(netDevice, ""+netDevice.isWaitForCTS);
                         if (netDevice.isWaitForCTS){
                             if (netDevice.nextSendPacket != null){
                                 netDevice.sendPacket(0, from, netDevice.nextSendPacket);
@@ -271,6 +281,23 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
             if (netDevice.numReceiving == 0){
                 netDevice.state = StateNetDevice.IDLE;
             }
+        }
+    }
+    //信道占用自降
+    class SubChannelSelfDe implements IF_Event{
+        NetDevice occupyNetDevice;
+        NetDevice netDevice;
+        public SubChannelSelfDe(NetDevice netDevice, NetDevice occupyNetDevice){
+            this.netDevice = netDevice;
+            this.occupyNetDevice = occupyNetDevice;
+        }
+        @Override
+        public void run(){
+            netDevice.tSubChannelOccupy--;
+            String str = "";
+            str += "NetDevice("+this.occupyNetDevice.getUid()+")完成占用信道";
+            str += "in NetDevice("+netDevice.getUid()+")";
+            Hprint.printlntDebugInfo(occupyNetDevice, str);
         }
     }
 }

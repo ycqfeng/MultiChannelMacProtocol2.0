@@ -16,12 +16,27 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
     double delay;
     Random random;
 
+    IF_Channel[] devices;
+
     public SubChannel(){
         Simulator.register(this);
         Hprint.register(this);
         this.bps = 1000;
-        this.delay = 1;
+        this.delay = 0.1;
         random = new Random();
+    }
+
+    public void register(IF_Channel device){
+        if (this.devices == null){
+            this.devices = new IF_Channel[1];
+            this.devices[0] = device;
+        }
+        else {
+            IF_Channel[] temp = new IF_Channel[this.devices.length+1];
+            System.arraycopy(this.devices, 0, temp, 0, this.devices.length);
+            temp[this.devices.length] = device;
+            this.devices = temp;
+        }
     }
 
     public void setBps(double bps){
@@ -34,8 +49,12 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
 
     public double send(NetDevice from, NetDevice to, Packet packet){
         double trans = getTimeTrans(packet);
-        SendToNetDevice toNetDevice = new SendToNetDevice(from, to, this, packet);
-        Simulator.addEvent(delay*random.nextDouble(), toNetDevice);
+        for (int i = 0 ; i < this.devices.length ; i++){
+            if (this.devices[i] != from){
+                SendToNetDevice toNetDevice = new SendToNetDevice(from, this.devices[i], this, packet);
+                Simulator.addEvent(delay+0.1*random.nextDouble(), toNetDevice);
+            }
+        }
         return trans;
     }
     class SendToNetDevice implements IF_Event{
@@ -44,9 +63,9 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
         Packet packet;
         SubChannel subChannel;
 
-        public SendToNetDevice(NetDevice from, NetDevice to, SubChannel subChannel, Packet packet){
-            this.from = from;
-            this.to = to;
+        public SendToNetDevice(IF_Channel from, IF_Channel to, SubChannel subChannel, Packet packet){
+            this.from = (NetDevice)from;
+            this.to = (NetDevice)to;
             this.subChannel = subChannel;
             this.packet = packet;
         }
