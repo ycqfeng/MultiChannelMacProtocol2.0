@@ -6,6 +6,7 @@ package han_multiChannelMacProtocol;
 public class PacketQueue {
     private Node queue;
     private Node end;
+    private int length;
 
     public Packet popPacket(){
         if (this.queue == null){
@@ -17,6 +18,7 @@ public class PacketQueue {
                 this.end = null;
             }
             this.queue = pop.next;
+            this.length--;
             return pop.getPacket();
         }
     }
@@ -26,14 +28,19 @@ public class PacketQueue {
     }
 
     public boolean pushPacket(Packet packet){
+        if (length >100){
+            return false;
+        }
         if (this.queue == null){
             this.queue = new Node(packet);
             this.end = queue;
+            this.length++;
             return true;
         }
         else {
             this.end.next = new Node(packet);
             this.end = this.end.next;
+            this.length++;
             return true;
         }
     }

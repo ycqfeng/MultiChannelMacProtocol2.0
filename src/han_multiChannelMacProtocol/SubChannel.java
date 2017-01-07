@@ -23,8 +23,8 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
         this.uid = uidBase++;
         Simulator.register(this);
         Hprint.register(this);
-        this.bps = 1000;
-        this.delay = 0.1;
+        this.bps = 1000000;
+        this.delay = 0;
         random = new Random();
     }
 

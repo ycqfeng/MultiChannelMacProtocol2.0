@@ -9,6 +9,11 @@ public class Hprint {
     private HprintNode[] nodes;
 
     //设置
+    public static void setALLClose(){
+        for (int i = 0 ; i < hprint.nodes.length ; i++){
+            hprint.nodes[i].setPrintALL(false);
+        }
+    }
     public static void setPrintErrorInformation(IF_HprintNode node, boolean state){
         for (int i = 0 ; i < hprint.nodes.length ; i++){
             if (hprint.nodes[i].getInstance() == node){

@@ -11,9 +11,9 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
     //私有参数
     private int uid;
     private PacketQueue queue;
-    private Packet nextSendPacket;
-    private double timeDIFS = 0.1;
-    private double timeSIFS = 0.1;
+    //private Packet nextSendPacket;
+    private double timeDIFS = TimeUnit.us*50;//DIFS时间
+    private double timeSIFS = TimeUnit.us*10;//SIFS时间
 
     //状态
     MPSubChannel mpSubChannel;
@@ -32,12 +32,16 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
     }
     //添加Packet到队列
     public boolean enQueue(Packet packet){
+        packet.setSourceUid(this.uid);
         String str = getStringUid()+"# ";
         if (this.queue.pushPacket(packet)){
             str += packet.getStringUid()+"加入队列成功";
             Hprint.printlntDebugInfo(this,str);
-            if (this.nextSendPacket == null){
+            /*if (this.nextSendPacket == null){
                 nextSendPacket = this.queue.popPacket();
+            }*/
+            if (this.mpSendPacket.isSendable()){
+                this.mpSendPacket.addNewPacketToSend(this.queue.popPacket());
             }
             return true;
         }
@@ -74,17 +78,17 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
         return "MacProtocol("+uid+")";
     }
     //临时接口，需要删除
-    public void sendPacket(int destinationUid, Packet packet){
+    /*public void sendPacket(int destinationUid, Packet packet){
         packet.setSourceUid(this.getUid());
         packet.setDestinationUid(destinationUid);
         mpSendPacket.addNewPacketToSend(packet);
-    }
-    public void sendCTS(int sourceUid, int destinationUid){
+    }*/
+    /*public void sendCTS(int sourceUid, int destinationUid){
         mpSendPacket.sendCTS(sourceUid, destinationUid, mpSubChannel.getSubChannel());
     }
     public void sendRTS(int sourceUid, int destinationUid){
         mpSendPacket.sendRTS(sourceUid,destinationUid);
-    }
+    }*/
 
     @Override
     public boolean receive(int sourceUid, int destinationUid, SubChannel subChannel, Packet packet) {
@@ -110,7 +114,6 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
             Hprint.register(this);
             this.macProtocol = macProtocol;
         }
-        String str;
         public void reveive(SubChannel subChannel, Packet packet){
             String str;
             switch (packet.getPacketType()){
@@ -125,7 +128,10 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                     Simulator.addEvent(subChannel.getTimeTrans(packet), receiveRTSEnd);
                     break;
                 case CTS:
-                    System.out.println("收到CTS");
+                    str = getStringUid()+"# ";
+                    str += "开始接收CTS，";
+                    str += "from ("+packet.getSourceUid()+")";
+                    Hprint.printlntDebugInfo(macProtocol, str);
                     MPReceivePacketEnd receiveCTSEnd = new MPReceivePacketEnd(subChannel, packet);
                     Simulator.addEvent(subChannel.getTimeTrans(packet), receiveCTSEnd);
                     break;
@@ -152,9 +158,19 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                         mpSendPacket.sendCTS(getUid(), receivePacket.getSourceUid(), mpSubChannel.getSubChannel());
                         break;
                     case CTS:
+                        str = getStringUid()+"# ";
+                        str += "完成接收CTS，";
+                        str += "from ("+receivePacket.getSourceUid()+")";
+                        Hprint.printlntDebugInfo(macProtocol, str);
                         if (receivePacket.sourceUid == mpSendPacket.getWaitForCTSUid()){
-                            System.out.println("收到指定CTS，取消RTS重发");
+                            str = getStringUid()+"# ";
+                            str += "收到指定CTS，取消RTS重发";
+                            Hprint.printlntDebugInfo(macProtocol, str);
                             mpSendPacket.cancelReTransRTS();
+                            /**
+                             * 进行发送
+                             */
+                            mpSendPacket.sendDataPacket(getUid(), receivePacket.getSourceUid(), subChannel);
                         }
                         break;
                     default:
@@ -212,8 +228,23 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
             this.sendRTS(packet.sourceUid, packet.destinationUid);
             String str = getStringUid()+"# ";
             str += "准备发送"+packet.getStringUid();
-            Hprint.printlnt(str);
+            Hprint.printlntDebugInfo(macProtocol,str);
             return true;
+        }
+        //完成一个数据包的发送
+        public void finishPacketToSend(){
+            this.dataPacket = null;
+            if (!queue.isEmpty()){
+                this.addNewPacketToSend(queue.popPacket());
+            }
+        }
+        public boolean isSendable(){
+            if (this.dataPacket == null){
+                return true;
+            }
+            else{
+                return false;
+            }
         }
         //重发次数上限，丢弃数据包
         private void dropDataPacket(){
@@ -228,9 +259,34 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
             if (this.reTransRTSEventUid > 0){
                 Simulator.deleteEvent(reTransRTSEventUid);
                 this.reTransRTSEventUid = -1;
+                this.reTransRTStime = 0;
             }
         }
 
+        //发送DataPacket
+        public void sendDataPacket(int sourceUid, int destinationUid, SubChannel subChannel){
+            SIFS sifsInstance = new SIFS(timeSIFS,
+                    new IF_Event() {//发送接口,SIFS结束时候执行
+                        @Override
+                        public void run() {
+                            String str = getStringUid()+"# ";
+                            str += "SIFS成功，马上发送DataPacket";
+                            Hprint.printlntDebugInfo(macProtocol, str);
+
+                            MPSendPacketBegin sendPacketBegin = new MPSendPacketBegin(sourceUid,
+                                    destinationUid,
+                                    subChannel,
+                                    dataPacket,
+                                    new IF_Event() {
+                                        @Override
+                                        public void run() {
+                                            finishPacketToSend();//完成一个数据包的发送
+                                        }
+                                    });
+                            Simulator.addEvent(0, sendPacketBegin);
+                        }
+                    });
+        }
         //发送CTS
         public void sendCTS(int sourceUid, int destinationUid, SubChannel subChannel){
             Packet cts = new Packet(lengthCTS, PacketType.CTS);
@@ -409,7 +465,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                 stateMacProtocol = StateMacProtocol.TRANSMISSION;
                 String str = "";
                 str += macProtocol.getStringUid()+"# ";
-                str += "开始传输["+packet.getPacketType()+"]";
+                str += "开始传输"+packet.getStringUid();
                 Hprint.printlntDebugInfo(macProtocol, str);
                 double t = this.subChannel.send(this.sourceUid, this.destinationUid, this.packet);
                 MPSendPacketEnd sendPacketEnd = new MPSendPacketEnd(packet, this.finishEvent);
@@ -426,9 +482,13 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
             }
             @Override
             public void run(){
+                if (packet.getPacketType() == PacketType.PACKET){
+                    Statistics.addPacket(packet);
+                }
+
                 String str = "";
                 str += macProtocol.getStringUid()+"# ";
-                str += "完成传输["+packet.getPacketType()+"]";
+                str += "完成传输"+packet.getStringUid();
                 Hprint.printlntDebugInfo(macProtocol, str);
                 stateMacProtocol = StateMacProtocol.IDLE;
                 if (this.finishEvent != null){
