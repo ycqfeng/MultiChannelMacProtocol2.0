@@ -17,12 +17,17 @@ public class Main {
         SubChannel subChannel = new SubChannel();
         Simulator.register(subChannel);
 
-        MacProtocol macProtocol = new MacProtocol();
-        Simulator.register(macProtocol);
-        Hprint.register(macProtocol);
-        macProtocol.setSubChannel(subChannel);
+        MacProtocol macProtocolsource = new MacProtocol();
+        MacProtocol macProtocoldestination = new MacProtocol();
+        Simulator.register(macProtocolsource);
+        Simulator.register(macProtocoldestination);
+        Hprint.register(macProtocolsource);
+        Hprint.register(macProtocoldestination);
+        macProtocolsource.setSubChannel(subChannel);
+        macProtocoldestination.setSubChannel(subChannel);
 
-        macProtocol.sendRTS();
+        //macProtocol.sendCTS(0,1);
+        macProtocolsource.sendRTS(0,1);
 
         Simulator.start();
         /*Simulator.init();

@@ -17,6 +17,7 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
     Random random;
 
     IF_Channel[] devices;
+    IF_Channel[] macProtocols;
 
     public SubChannel(){
         this.uid = uidBase++;
@@ -33,6 +34,19 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
 
     public String getStringUid(){
         return "SubChannel("+uid+")";
+    }
+
+    public void registerMac(IF_Channel macProtocol){
+        if (this.macProtocols == null){
+            this.macProtocols = new IF_Channel[1];
+            this.macProtocols[0] = macProtocol;
+        }
+        else{
+            IF_Channel[] temp = new IF_Channel[this.macProtocols.length+1];
+            System.arraycopy(this.macProtocols, 0, temp, 0, this.macProtocols.length);
+            temp[this.macProtocols.length] = macProtocol;
+            this.macProtocols = temp;
+        }
     }
 
     public void register(IF_Channel device){
@@ -52,10 +66,27 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
         this.bps = bps;
     }
 
+    public double getTimeTrans(int lengthPacket){
+        return lengthPacket/this.bps;
+    }
     public double getTimeTrans(Packet packet){
         return packet.getLength()/this.bps;
     }
 
+    public double send(int sourceUid, int destinationUid, Packet packet){
+        double trans = getTimeTrans(packet);
+        SubChannel subChannel = this;
+        for (int i = 0 ; i < this.macProtocols.length ; i++){
+            IF_Channel desMac = this.macProtocols[i];
+            Simulator.addEvent(delay, new IF_Event() {
+                @Override
+                public void run() {
+                    desMac.receive(sourceUid,destinationUid,subChannel, packet);
+                }
+            });
+        }
+        return trans;
+    }
     public double send(NetDevice from, NetDevice to, Packet packet){
         double trans = getTimeTrans(packet);
         for (int i = 0 ; i < this.devices.length ; i++){

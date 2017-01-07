@@ -5,13 +5,13 @@ package han_multiChannelMacProtocol;
  */
 public class Packet {
     private static int uidBase = 0;
-    private int uid;
+    protected int uid;
 
-    private PacketType packetType;//类型
-    private int length;//长度
-    private int sourceUid;
-    private int destinationUid;
-    private NetDevice to;
+    protected PacketType packetType;//类型
+    protected int length;//长度
+    protected int sourceUid;
+    protected int destinationUid;
+    protected NetDevice to;
 
     //构造函数
     public Packet(){
