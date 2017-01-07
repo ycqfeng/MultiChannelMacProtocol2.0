@@ -2,10 +2,8 @@ package com.company;
 
 import han_multiChannelMacProtocol.*;
 import han_simulator.Hprint;
-import han_simulator.IF_Event;
 import han_simulator.Simulator;
 
-import javax.crypto.Mac;
 
 public class Main {
 
@@ -27,7 +25,10 @@ public class Main {
         macProtocoldestination.setSubChannel(subChannel);
 
         //macProtocol.sendCTS(0,1);
-        macProtocolsource.sendRTS(0,1);
+        //macProtocolsource.sendRTS(0,1);
+        Packet p = new Packet(200);
+        macProtocolsource.sendPacket(1,p);
+        macProtocolsource.sendPacket(1,p);
 
         Simulator.start();
         /*Simulator.init();
