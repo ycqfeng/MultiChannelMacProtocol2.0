@@ -1,7 +1,6 @@
 package han_multiChannelMacProtocol;
 
 import han_simulator.*;
-import org.omg.CORBA.portable.IDLEntity;
 
 /**
  * Created by ycqfeng on 2017/1/6.
@@ -16,15 +15,17 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
     private double timeSIFS = TimeUnit.us*10;//SIFS时间
 
     //状态
-    MPSubChannel mpSubChannel;
-    StateMacProtocol stateMacProtocol;
-    MPSendPacket mpSendPacket;
-    MPReceivePacket mpReceivePacket;
+    private MPSubChannel mpSubChannel;
+    private MPSubChannelState mpSubChannelState;
+    private StateMacProtocol stateMacProtocol;
+    private MPSendPacket mpSendPacket;
+    private MPReceivePacket mpReceivePacket;
 
     //构造函数
     public MacProtocol(){
         this.uid = uidBase++;
         this.mpSubChannel = new MPSubChannel(this);
+        this.mpSubChannelState = new MPSubChannelState(this);
         this.queue = new PacketQueue();
         this.mpSendPacket = new MPSendPacket(this);
         this.mpReceivePacket = new MPReceivePacket(this);
@@ -53,7 +54,8 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
     }
     //设置信道
     public void setSubChannel(SubChannel subChannel){
-        this.mpSubChannel.setSubChannel(subChannel);
+        this.mpSubChannelState.setSubChannel(subChannel);
+        this.mpSubChannel.setSubChannel(subChannel);//旧，需要删除
         subChannel.registerMac(this);
     }
     //设置信道占用
@@ -84,9 +86,9 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
         if (sourceUid == this.uid){
             return false;
         }
-
+        this.mpSubChannelState.intoRECEVNG(subChannel.getTimeTrans(packet));
         if (destinationUid == this.uid){
-            this.mpReceivePacket.reveive(subChannel, packet);
+            this.mpReceivePacket.receivePacketStart(subChannel, packet);
         }
         else {
             this.setSubchannelOccupy(packet);
@@ -104,30 +106,14 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
             Hprint.register(this);
             this.macProtocol = macProtocol;
         }
-        public void reveive(SubChannel subChannel, Packet packet){
-            String str;
-            switch (packet.getPacketType()){
-                case PACKET:
-                    break;
-                case RTS:
-                    str = getStringUid()+"# ";
-                    str += "开始接收RTS，";
-                    str += "from ("+packet.getSourceUid()+")";
-                    Hprint.printlntDebugInfo(macProtocol, str);
-                    MPReceivePacketEnd receiveRTSEnd = new MPReceivePacketEnd(subChannel, packet);
-                    Simulator.addEvent(subChannel.getTimeTrans(packet), receiveRTSEnd);
-                    break;
-                case CTS:
-                    str = getStringUid()+"# ";
-                    str += "开始接收CTS，";
-                    str += "from ("+packet.getSourceUid()+")";
-                    Hprint.printlntDebugInfo(macProtocol, str);
-                    MPReceivePacketEnd receiveCTSEnd = new MPReceivePacketEnd(subChannel, packet);
-                    Simulator.addEvent(subChannel.getTimeTrans(packet), receiveCTSEnd);
-                    break;
-                default:
-                    break;
-            }
+        //包目标是自己，进行接收
+        public void receivePacketStart(SubChannel subChannel, Packet packet){
+            String str = getStringUid()+"# ";
+            str += "开始接收"+packet.getStringUid();
+            str += ", from MacProtocol("+packet.getSourceUid()+")";
+            Hprint.printlntDebugInfo(macProtocol, str);
+            MPReceivePacketEnd receivePacketEnd = new MPReceivePacketEnd(subChannel, packet);
+            Simulator.addEvent(subChannel.getTimeTrans(packet), receivePacketEnd);
         }
         class MPReceivePacketEnd implements IF_Event{
             Packet receivePacket;
@@ -139,6 +125,12 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
             @Override
             public void run(){
                 String str;
+                if (mpSubChannelState.isReceiveCollision()){
+                    Hprint.printlnt("接收发生了碰撞");
+                }
+                else{
+                    Hprint.printlnt("接收未发生碰撞");
+                }
                 switch (receivePacket.getPacketType()){
                     case RTS:
                         str = getStringUid()+"# ";
@@ -460,12 +452,12 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
             }
             @Override
             public void run(){
-                //stateMacProtocol = StateMacProtocol.TRANSMISSION;
                 String str = "";
                 str += macProtocol.getStringUid()+"# ";
                 str += "开始传输"+packet.getStringUid();
                 Hprint.printlntDebugInfo(macProtocol, str);
                 double t = this.subChannel.send(this.sourceUid, this.destinationUid, this.packet);
+                mpSubChannelState.intoSENDING(t);
                 MPSendPacketEnd sendPacketEnd = new MPSendPacketEnd(packet, this.finishEvent);
                 Simulator.addEvent(t, sendPacketEnd);
             }
@@ -574,13 +566,98 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
         private SubChannel subChannel;
         private StateSubChannel stateSubChannel;
 
+        //发送相关信息
+        private int endEventSENDING;//SENDING状态结束事件
+        private double endEventSENDINGexeTime;//SENGING状态结束时间
+        //接收相关信息
+        private int endEventRECEIVING;//RECEIVING状态结束事件
+        private double endEventRECEIVEexeTime;//RECEIVING状态结束时间
+        private boolean receiveCollision;//接收碰撞检测
+
         //构造函数
         public MPSubChannelState(MacProtocol macProtocol){
             this.macProtocol = macProtocol;
+            //发送相关信息
+            this.endEventSENDING = -1;
+            this.endEventRECEIVEexeTime = -1;
+            //接收相关信息
+            this.endEventRECEIVING = -1;
+            this.endEventRECEIVEexeTime = -1;
+            this.receiveCollision = false;
         }
-        //
-        public void intoRECEVNG(double startTime, double endTime){
-            /////////////////////////////
+        //检测是否碰撞
+        public boolean isReceiveCollision(){
+            return this.receiveCollision;
+        }
+        //消除RECEVING状态
+        public void cancelRECEVING(){
+            this.stateSubChannel = StateSubChannel.IDLE;
+            Simulator.deleteEvent(endEventRECEIVING);
+            this.endEventRECEIVING = -1;
+            this.endEventRECEIVEexeTime = -1;
+        }
+        //消除SENDING状态
+        public void cancelSENDING(){
+            this.stateSubChannel = StateSubChannel.IDLE;
+            Simulator.deleteEvent(endEventSENDING);
+            this.endEventSENDING = -1;
+            this.endEventSENDINGexeTime = -1;
+        }
+        //转换到SENDING状态，持续duration
+        public void intoSENDING(double duration){
+            String str = getStringUid()+"# ";
+            str += this.subChannel.getStringUid()+"["+stateSubChannel+"]";
+            str += "->["+StateSubChannel.SENDING+"]";
+            Hprint.printlntDebugInfo(macProtocol, str);
+            this.stateSubChannel = StateSubChannel.SENDING;
+            endEventSENDINGexeTime = Simulator.getCurTime()+duration;
+            endEventSENDING = Simulator.addEvent(duration,
+                    new IF_Event() {
+                        @Override
+                        public void run() {
+                            String str = getStringUid()+"# ";
+                            str += subChannel.getStringUid()+"["+stateSubChannel+"]";
+                            str += "->["+StateSubChannel.IDLE+"]";
+                            Hprint.printlntDebugInfo(macProtocol, str);
+                            cancelSENDING();
+                        }
+                    });
+        }
+        //转换到RECEIVING状态，持续duration
+        public void intoRECEVNG(double duration){
+            if (this.stateSubChannel != StateSubChannel.RECEIVING){
+                //当前未处于RECEIVING状态
+                String str = getStringUid()+"# ";
+                str += this.subChannel.getStringUid()+"["+stateSubChannel+"]";
+                str += "->["+StateSubChannel.RECEIVING+"]";
+                Hprint.printlntDebugInfo(macProtocol, str);
+                this.stateSubChannel = StateSubChannel.RECEIVING;
+                this.receiveCollision = false;//初次进入接收状态不会触发碰撞
+            }
+            else{
+                //当前处于RECEIVING状态
+                receiveCollision = true;//再次进入接收状态会触发碰撞
+                double tempEndEventRECEIVINGexeTime = Simulator.getCurTime()+duration;
+                if (tempEndEventRECEIVINGexeTime < this.endEventRECEIVEexeTime){
+                    //新的接收结束时间提前于旧的接收结束时间，无需改变
+                    return;
+                }
+                cancelRECEVING();
+            }
+            //添加RECEIVING结束
+            endEventRECEIVEexeTime = Simulator.getCurTime()+duration;
+            endEventRECEIVING = Simulator.addEvent(duration,
+                    new IF_Event() {
+                        @Override
+                        public void run() {
+                            String str = getStringUid()+"# ";
+                            str += subChannel.getStringUid()+"["+stateSubChannel+"]";
+                            str += "->["+StateSubChannel.IDLE+"]";
+                            Hprint.printlntDebugInfo(macProtocol, str);
+                            cancelRECEVING();
+                        }
+                    });
+
         }
         //获取状态
         public StateSubChannel getStateSubChannel(){

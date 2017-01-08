@@ -6,6 +6,6 @@ package han_multiChannelMacProtocol;
 public enum StateNetDevice {
     IDLE,
     TRANSMISSION,
-    RECEVING,
+    RECEIVING,
     WAITING
 }

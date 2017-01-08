@@ -231,7 +231,7 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
                     netDevice.numReceiving++;
                     netDevice.isCollision = false;
                     break;
-                case RECEVING:
+                case RECEIVING:
                     netDevice.numReceiving++;
                     netDevice.isCollision = true;
                     break;
@@ -247,7 +247,7 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
                 default:
                     break;
             }
-            netDevice.state = StateNetDevice.RECEVING;
+            netDevice.state = StateNetDevice.RECEIVING;
             netDevice.tSubChannelOccupy ++;
             NetDeviceReceiveEnd receiveEnd = new NetDeviceReceiveEnd(from, netDevice, subChannel, packet);
             double trans = subChannel.getTimeTrans(packet);
