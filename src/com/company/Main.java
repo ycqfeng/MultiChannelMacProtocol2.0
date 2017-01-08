@@ -17,7 +17,7 @@ public class Main {
         SubChannel subChannel = new SubChannel();
         Simulator.register(subChannel);
 
-        MacProtocol[] macProtocolsSource = new MacProtocol[100];
+        MacProtocol[] macProtocolsSource = new MacProtocol[3];
         for (int i = 0 ; i < macProtocolsSource.length ; i++){
             macProtocolsSource[i] = new MacProtocol();
             Simulator.register(macProtocolsSource[i]);
@@ -48,11 +48,13 @@ public class Main {
         }
         Simulator.addEvent(t, new AddEvent());
 
-        Hprint.setALLClose();
+        //Hprint.setALLClose();
+       // Hprint.setPrintDebugInformation(macProtocoldestination, false);
 
         Simulator.start();
         Statistics.print();
         System.out.println(length/t/1000 + "Kbps");
+        System.out.println(macProtocoldestination.getStringUid());
 
 
 

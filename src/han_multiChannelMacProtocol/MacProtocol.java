@@ -10,8 +10,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
     private static int uidBase = 0;
     //私有参数
     private int uid;
-    private PacketQueue queue;
-    //private Packet nextSendPacket;
+    private PacketQueue queue;//待发Packet
     private double timeDIFS = TimeUnit.us*50;//DIFS时间
     private double timeSIFS = TimeUnit.us*10;//SIFS时间
 
@@ -35,18 +34,17 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
         packet.setSourceUid(this.uid);
         String str = getStringUid()+"# ";
         if (this.queue.pushPacket(packet)){
-            str += packet.getStringUid()+"加入队列成功";
+            str += packet.getStringUid()+"加入队列成功,";
+            str += this.queue.getStringPacketQueueState();
             Hprint.printlntDebugInfo(this,str);
-            /*if (this.nextSendPacket == null){
-                nextSendPacket = this.queue.popPacket();
-            }*/
             if (this.mpSendPacket.isSendable()){
                 this.mpSendPacket.addNewPacketToSend(this.queue.popPacket());
             }
             return true;
         }
         else{
-            str += packet.getStringUid()+"加入队列失败";
+            str += packet.getStringUid()+"加入队列失败,";
+            str += this.queue.getStringPacketQueueState();
             Hprint.printlntDebugInfo(this,str);
             return false;
         }
@@ -78,17 +76,6 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
         return "MacProtocol("+uid+")";
     }
     //临时接口，需要删除
-    /*public void sendPacket(int destinationUid, Packet packet){
-        packet.setSourceUid(this.getUid());
-        packet.setDestinationUid(destinationUid);
-        mpSendPacket.addNewPacketToSend(packet);
-    }*/
-    /*public void sendCTS(int sourceUid, int destinationUid){
-        mpSendPacket.sendCTS(sourceUid, destinationUid, mpSubChannel.getSubChannel());
-    }
-    public void sendRTS(int sourceUid, int destinationUid){
-        mpSendPacket.sendRTS(sourceUid,destinationUid);
-    }*/
 
     @Override
     public boolean receive(int sourceUid, int destinationUid, SubChannel subChannel, Packet packet) {
@@ -224,6 +211,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                 Hprint.printlnt("上一个数据包未发完，不能添加");
                 return false;
             }
+            stateMacProtocol = StateMacProtocol.TRANSMISSION;
             this.dataPacket = packet;
             this.sendRTS(packet.sourceUid, packet.destinationUid);
             String str = getStringUid()+"# ";
@@ -249,6 +237,12 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
         //重发次数上限，丢弃数据包
         private void dropDataPacket(){
             this.dataPacket = null;
+            if (queue.isEmpty()){
+                stateMacProtocol = StateMacProtocol.IDLE;//队列空，回归空闲
+            }
+            else{
+                this.addNewPacketToSend(queue.popPacket());//队列非空，发送下一个数据包
+            }
         }
         //获取waitForCTSUid
         public int getWaitForCTSUid(){
@@ -317,6 +311,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
         }
         //发送RTS
         public void sendRTS(int sourceUid, int destinationUid){
+            stateMacProtocol = StateMacProtocol.TRANSMISSION;//信道转换为传输
             if (mpSubChannel.isOccupy()){//信道占用则退避
                 if (this.backoffTime++ < this.backoffTimeLimit){
                     String str = getStringUid()+"# ";
@@ -333,13 +328,13 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                 else{
                     String str = getStringUid()+"# ";
                     str += "达到RTS退避上限，丢弃数据包";
-                    dropDataPacket();//丢弃正在发送的数据包
                     Hprint.printlntDebugInfo(this, str);
                     this.backoffTime = 0;
+                    dropDataPacket();//RTS退避上限，丢弃正在发送的数据包
                 }
                 return;
             }
-            stateMacProtocol = StateMacProtocol.TRANSMISSION;//信道转换为传输
+            //信道未被占用，开始发送RTS
             PacketRTS rts = new PacketRTS(lengthRTS, dataPacket);
             rts.setSourceUid(sourceUid);
             rts.setDestinationUid(destinationUid);
@@ -358,6 +353,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                                 reTrans = new IF_Event() {
                                     @Override
                                     public void run() {
+                                        stateMacProtocol = StateMacProtocol.WAITING;//传输后进入等待状态
                                         reTransRTSEventUid = Simulator.addEvent(timerReTransRTS,
                                                 new IF_Event() {
                                                     @Override
@@ -365,6 +361,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                                                         String str = getStringUid();
                                                         str += "启动第"+reTransRTStime+"次RTS重传";
                                                         Hprint.printlntDebugInfo(mpSendPacket, str);
+                                                        stateMacProtocol = StateMacProtocol.TRANSMISSION;//重发RTS，进入传输状态
                                                         sendRTS(sourceUid, destinationUid);
                                                     }
                                                 });
@@ -378,12 +375,14 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                                 reTrans = new IF_Event() {
                                     @Override
                                     public void run() {
+                                        stateMacProtocol = StateMacProtocol.WAITING;//传输后进入等待状态
                                         Simulator.addEvent(timerReTransRTS,
                                                 new IF_Event() {
                                                     @Override
                                                     public void run() {
                                                         waitForCTSUid = -1;
                                                         reTransRTStime = 0;
+                                                        dropDataPacket();//RTS重发上限，丢弃数据包
                                                     }
                                                 });
                                     }
@@ -396,11 +395,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                                     rts,
                                     reTrans);
                             Simulator.addEvent(0, sendPacketBegin);
-
-                            /**
-                             * 等待CTS
-                             */
-                            stateMacProtocol = StateMacProtocol.IDLE;
+                            //stateMacProtocol = StateMacProtocol.IDLE;
                         }
                     },
                     new IF_Event() {//中断接口
@@ -416,11 +411,11 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                                 reTryRTS = 0;
                                 String str = getStringUid()+"# ";
                                 str += "DIFS连续"+reTryRTSLimit+"次失败，发送RTS失败，丢弃正在发送的数据包";
-                                dropDataPacket();
                                 Hprint.printlntDebugInfo(macProtocol, str);
                                 deleteDifs();
+                                dropDataPacket();//DIFS被中断次数上限，丢弃数据包
                             }
-                            stateMacProtocol = StateMacProtocol.IDLE;//结束传输状态
+                            //stateMacProtocol = StateMacProtocol.IDLE;//结束传输状态
                         }
                     }
             );
@@ -462,7 +457,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
             }
             @Override
             public void run(){
-                stateMacProtocol = StateMacProtocol.TRANSMISSION;
+                //stateMacProtocol = StateMacProtocol.TRANSMISSION;
                 String str = "";
                 str += macProtocol.getStringUid()+"# ";
                 str += "开始传输"+packet.getStringUid();
@@ -482,15 +477,17 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
             }
             @Override
             public void run(){
-                if (packet.getPacketType() == PacketType.PACKET){
+                /**
+                 * 统计
+                 * if (packet.getPacketType() == PacketType.PACKET){
                     Statistics.addPacket(packet);
-                }
+                }*/
 
                 String str = "";
                 str += macProtocol.getStringUid()+"# ";
                 str += "完成传输"+packet.getStringUid();
                 Hprint.printlntDebugInfo(macProtocol, str);
-                stateMacProtocol = StateMacProtocol.IDLE;
+                //stateMacProtocol = StateMacProtocol.IDLE;
                 if (this.finishEvent != null){
                     Simulator.addEvent(0, finishEvent);
                 }
@@ -560,10 +557,10 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                 str += "DIFS结束";
                 Hprint.printlntDebugInfo(mpSendPacket, str);
                 if (isDisturb){
-                    Simulator.addEvent(0, disturbInterface);
+                    Simulator.addEvent(0, disturbInterface);//DIFS被打断
                 }
                 else {
-                    Simulator.addEvent(0, sendInterface);
+                    Simulator.addEvent(0, sendInterface);//DIFS成功，发送数据
                 }
             }
         }
