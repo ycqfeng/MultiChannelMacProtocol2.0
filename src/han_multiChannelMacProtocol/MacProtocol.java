@@ -1,6 +1,7 @@
 package han_multiChannelMacProtocol;
 
 import han_simulator.*;
+import org.omg.CORBA.portable.IDLEntity;
 
 /**
  * Created by ycqfeng on 2017/1/6.
@@ -79,9 +80,11 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
 
     @Override
     public boolean receive(int sourceUid, int destinationUid, SubChannel subChannel, Packet packet) {
+        //本身发送，略过
         if (sourceUid == this.uid){
             return false;
         }
+
         if (destinationUid == this.uid){
             this.mpReceivePacket.reveive(subChannel, packet);
         }
@@ -563,6 +566,42 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                     Simulator.addEvent(0, sendInterface);//DIFS成功，发送数据
                 }
             }
+        }
+    }
+    //信道信息记录
+    class MPSubChannelState{
+        private MacProtocol macProtocol;
+        private SubChannel subChannel;
+        private StateSubChannel stateSubChannel;
+
+        //构造函数
+        public MPSubChannelState(MacProtocol macProtocol){
+            this.macProtocol = macProtocol;
+        }
+        //
+        public void intoRECEVNG(double startTime, double endTime){
+            /////////////////////////////
+        }
+        //获取状态
+        public StateSubChannel getStateSubChannel(){
+            return this.stateSubChannel;
+        }
+        //是否Available
+        public boolean isAvailable(){
+            if (this.stateSubChannel == StateSubChannel.IDLE){
+                return true;
+            }
+            else{
+                return false;
+            }
+        }
+        //设置信道
+        public void setSubChannel(SubChannel subChannel){
+            this.setSubChannel(subChannel, StateSubChannel.IDLE);
+        }
+        public void setSubChannel(SubChannel subChannel, StateSubChannel state){
+            this.subChannel = subChannel;
+            this.stateSubChannel = state;
         }
     }
     //信道
