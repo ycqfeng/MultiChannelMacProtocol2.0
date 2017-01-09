@@ -7,6 +7,7 @@ public class Hprint {
     public static Hprint hprint;
 
     private HprintNode[] nodes;
+    private int curTimeStringMaxLength = 0;
 
     //设置
     public static void setALLClose(){
@@ -178,6 +179,16 @@ public class Hprint {
     public static String getCurrTime(){
         String str = "";
         str += Simulator.getCurTime() + "s, ";
+        if (str.length() < hprint.curTimeStringMaxLength){
+            for (int i = 0 ; str.length() < hprint.curTimeStringMaxLength ; i++){
+                str = "~"+str;
+            }
+        }
+        else{
+            hprint.curTimeStringMaxLength = str.length();
+        }
+        //System.out.println(str.length());
+        //System.out.println(hprint.curTimeStringMaxLength);
         return str;
     }
 }

@@ -126,39 +126,41 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
             public void run(){
                 String str;
                 if (mpSubChannelState.isReceiveCollision()){
-                    Hprint.printlnt("接收发生了碰撞");
+                    str = getStringUid()+"# ";
+                    str += receivePacket.getStringUid()+" from ("+receivePacket.getPacketType()+")";
+                    str += ", 接收发生碰撞";
+                    Hprint.printlntDebugInfo(macProtocol, str);
                 }
                 else{
+                    switch (receivePacket.getPacketType()){
+                        case RTS:
+                            str = getStringUid()+"# ";
+                            str += "完成接收RTS，";
+                            str += "from ("+receivePacket.getSourceUid()+")";
+                            Hprint.printlntDebugInfo(macProtocol, str);
+                            mpSendPacket.sendCTS(getUid(), receivePacket.getSourceUid(), mpSubChannel.getSubChannel());
+                            break;
+                        case CTS:
+                            str = getStringUid()+"# ";
+                            str += "完成接收CTS，";
+                            str += "from ("+receivePacket.getSourceUid()+")";
+                            Hprint.printlntDebugInfo(macProtocol, str);
+                            if (receivePacket.sourceUid == mpSendPacket.getWaitForCTSUid()){
+                                str = getStringUid()+"# ";
+                                str += "收到指定CTS，取消RTS重发";
+                                Hprint.printlntDebugInfo(macProtocol, str);
+                                mpSendPacket.cancelReTransRTS();
+                                /**
+                                 * 进行发送
+                                 */
+                                mpSendPacket.sendDataPacket(getUid(), receivePacket.getSourceUid(), subChannel);
+                            }
+                            break;
+                        default:
+                            break;
+                    }
                     Hprint.printlnt("接收未发生碰撞");
                 }
-                switch (receivePacket.getPacketType()){
-                    case RTS:
-                        str = getStringUid()+"# ";
-                        str += "完成接收RTS，";
-                        str += "from ("+receivePacket.getSourceUid()+")";
-                        Hprint.printlntDebugInfo(macProtocol, str);
-                        mpSendPacket.sendCTS(getUid(), receivePacket.getSourceUid(), mpSubChannel.getSubChannel());
-                        break;
-                    case CTS:
-                        str = getStringUid()+"# ";
-                        str += "完成接收CTS，";
-                        str += "from ("+receivePacket.getSourceUid()+")";
-                        Hprint.printlntDebugInfo(macProtocol, str);
-                        if (receivePacket.sourceUid == mpSendPacket.getWaitForCTSUid()){
-                            str = getStringUid()+"# ";
-                            str += "收到指定CTS，取消RTS重发";
-                            Hprint.printlntDebugInfo(macProtocol, str);
-                            mpSendPacket.cancelReTransRTS();
-                            /**
-                             * 进行发送
-                             */
-                            mpSendPacket.sendDataPacket(getUid(), receivePacket.getSourceUid(), subChannel);
-                        }
-                        break;
-                    default:
-                        break;
-                }
-
             }
         }
     }
