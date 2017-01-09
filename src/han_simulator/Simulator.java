@@ -1,5 +1,7 @@
 package han_simulator;
 
+import java.text.DecimalFormat;
+
 /**
  * Created by ycqfeng on 2017/1/4.
  */
@@ -15,6 +17,8 @@ public class Simulator implements IF_HprintNode{
     private IF_simulator[] interfaces;
     //结束标志
     boolean executeFinish;
+    //格式化
+    private DecimalFormat decimalFormat;
 
     //初始化
     public static void init(){
@@ -23,6 +27,7 @@ public class Simulator implements IF_HprintNode{
         Hprint.printlnt("仿真器完成初始化");
         simulator.curTime = 0;
         simulator.stopTime = 0;
+        simulator.decimalFormat = new DecimalFormat("#.00");
     }
 
     //是否完成
@@ -195,7 +200,7 @@ public class Simulator implements IF_HprintNode{
                 progress = 100 * this.curTime/this.stopTime;
                 if (progress - difProgress >1){
                     endPoint = System.currentTimeMillis();
-                    System.out.println(progress+"%, 耗时："+(endPoint-startPoint)+"ms");
+                    System.out.println(decimalFormat.format(progress)+"%, 耗时："+(endPoint-startPoint)+"ms");
                     difProgress = Math.floor(progress);
                     startPoint = System.currentTimeMillis();
                 }

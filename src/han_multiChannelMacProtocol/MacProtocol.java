@@ -11,8 +11,8 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
     //私有参数
     private int uid;
     private PacketQueue queue;//待发Packet
-    private double timeDIFS = TimeUnit.us*50;//DIFS时间
-    private double timeSIFS = TimeUnit.us*10;//SIFS时间
+    private double timeDIFS = TimeUnitValue.us*50;//DIFS时间
+    private double timeSIFS = TimeUnitValue.us*10;//SIFS时间
 
     //状态
     private MPSubChannel mpSubChannel;
@@ -197,7 +197,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
             this.timerReTransRTS = 1;
             this.reTransRTStime = 0;
             this.reTransRTStimeLimit = 3;
-            this.reTransRTSEventUid = -1;
+            this.reTransRTSEventUid = -1;//初始化
             this.waitForCTSUid = -1;
             this.backoffTime = 0;
             this.backoffTimeLimit = 16;
@@ -210,7 +210,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
             }
             stateMacProtocol = StateMacProtocol.TRANSMISSION;
             this.dataPacket = packet;
-            this.sendRTS(packet.sourceUid, packet.destinationUid);
+            this.sendRTS(packet.sourceUid, packet.destinationUid);//开始协商发送数据包
             String str = getStringUid()+"# ";
             str += "准备发送"+packet.getStringUid();
             Hprint.printlntDebugInfo(macProtocol,str);
@@ -247,9 +247,9 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
         }
         //取消RTS重传
         public void cancelReTransRTS(){
-            if (this.reTransRTSEventUid > 0){
-                Simulator.deleteEvent(reTransRTSEventUid);
-                this.reTransRTSEventUid = -1;
+            if (this.reTransRTSEventUid > 0){//如果有重发事件
+                Simulator.deleteEvent(reTransRTSEventUid);//删除重发事件
+                this.reTransRTSEventUid = -1;//删除后重新初始化
                 this.reTransRTStime = 0;
             }
         }
@@ -351,11 +351,11 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                                     @Override
                                     public void run() {
                                         stateMacProtocol = StateMacProtocol.WAITING;//传输后进入等待状态
-                                        reTransRTSEventUid = Simulator.addEvent(timerReTransRTS,
+                                        reTransRTSEventUid = Simulator.addEvent(timerReTransRTS,//添加重传事件
                                                 new IF_Event() {
                                                     @Override
                                                     public void run() {
-                                                        String str = getStringUid();
+                                                        String str = getStringUid()+"# ";
                                                         str += "启动第"+reTransRTStime+"次RTS重传";
                                                         Hprint.printlntDebugInfo(mpSendPacket, str);
                                                         stateMacProtocol = StateMacProtocol.TRANSMISSION;//重发RTS，进入传输状态
@@ -373,15 +373,21 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                                     @Override
                                     public void run() {
                                         stateMacProtocol = StateMacProtocol.WAITING;//传输后进入等待状态
-                                        Simulator.addEvent(timerReTransRTS,
+                                        reTransRTSEventUid = Simulator.addEvent(timerReTransRTS,
                                                 new IF_Event() {
                                                     @Override
                                                     public void run() {
                                                         waitForCTSUid = -1;
                                                         reTransRTStime = 0;
+                                                        String str = getStringUid()+"# ";
+                                                        System.out.println(getStringUid());
+                                                        str += "重传失败，丢弃"+dataPacket.getStringUid();
+                                                        Hprint.printlntDebugInfo(mpSendPacket, str);
                                                         dropDataPacket();//RTS重发上限，丢弃数据包
                                                     }
                                                 });
+                                        waitForCTSUid = destinationUid;
+
                                     }
                                 };
                             }
@@ -391,7 +397,10 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                                     getSubChannel(),
                                     rts,
                                     reTrans);
-                            Simulator.addEvent(0, sendPacketBegin);
+                            double t = backOff.getMaxBackOffTime();
+                            str = getStringUid()+"推迟"+t+"秒开始重发";
+                            Hprint.printlntDebugInfo(macProtocol, str);
+                            Simulator.addEvent(t, sendPacketBegin);
                             //stateMacProtocol = StateMacProtocol.IDLE;
                         }
                     },
@@ -570,7 +579,8 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
 
         //发送相关信息
         private int endEventSENDING;//SENDING状态结束事件
-        private double endEventSENDINGexeTime;//SENGING状态结束时间
+        private double endEventSENDINGexeTime;//SENDING状态结束时间
+        private boolean returnToRECEVING;//SENDING状态结束返回到RECEIVING状态
         //接收相关信息
         private int endEventRECEIVING;//RECEIVING状态结束事件
         private double endEventRECEIVEexeTime;//RECEIVING状态结束时间
@@ -611,6 +621,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
             str += this.subChannel.getStringUid()+"["+stateSubChannel+"]";
             str += "->["+StateSubChannel.SENDING+"]";
             Hprint.printlntDebugInfo(macProtocol, str);
+
             this.stateSubChannel = StateSubChannel.SENDING;
             endEventSENDINGexeTime = Simulator.getCurTime()+duration;
             endEventSENDING = Simulator.addEvent(duration,
@@ -619,33 +630,59 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                         public void run() {
                             String str = getStringUid()+"# ";
                             str += subChannel.getStringUid()+"["+stateSubChannel+"]";
-                            str += "->["+StateSubChannel.IDLE+"]";
+                            if (returnToRECEVING){
+                                str += "->["+StateSubChannel.RECEIVING+"]";
+                            }
+                            else{
+                                str += "->["+StateSubChannel.IDLE+"]";
+                            }
                             Hprint.printlntDebugInfo(macProtocol, str);
                             cancelSENDING();
+                            if (returnToRECEVING){
+                                stateSubChannel = StateSubChannel.RECEIVING;
+                            }
                         }
                     });
+            this.returnToRECEVING = false;
+            if (this.stateSubChannel == StateSubChannel.RECEIVING){
+                if (this.endEventSENDINGexeTime < this.endEventRECEIVEexeTime)
+                    this.returnToRECEVING = true;
+            }
         }
         //转换到RECEIVING状态，持续duration
         public void intoRECEVNG(double duration){
-            if (this.stateSubChannel != StateSubChannel.RECEIVING){
-                //当前未处于RECEIVING状态
-                String str = getStringUid()+"# ";
-                str += this.subChannel.getStringUid()+"["+stateSubChannel+"]";
-                str += "->["+StateSubChannel.RECEIVING+"]";
-                Hprint.printlntDebugInfo(macProtocol, str);
-                this.stateSubChannel = StateSubChannel.RECEIVING;
-                this.receiveCollision = false;//初次进入接收状态不会触发碰撞
+            switch (this.stateSubChannel){
+                case RECEIVING:
+                    //当前处于RECEIVING状态
+                    receiveCollision = true;//再次进入接收状态会触发碰撞
+                    double tempEndEventRECEIVINGexeTime = Simulator.getCurTime()+duration;
+                    if (tempEndEventRECEIVINGexeTime < this.endEventRECEIVEexeTime){
+                        //新的接收结束时间提前于旧的接收结束时间，无需改变
+                        return;
+                    }
+                    cancelRECEVING();
+                    break;
+                case SENDING:
+                    //若发送持续时间大于本次接收，则忽略
+                    if ( this.endEventSENDINGexeTime >= Simulator.getCurTime()+duration){
+                        return;
+                    }
+                    //否则发送结束时候需要返回RECEIVING状态
+                    else{
+                        this.returnToRECEVING = true;
+                    }
+                    break;
+                case NAV:
+                case IDLE:
+                    //当前未处于RECEIVING状态
+                    String str = getStringUid()+"# ";
+                    str += this.subChannel.getStringUid()+"["+stateSubChannel+"]";
+                    str += "->["+StateSubChannel.RECEIVING+"]";
+                    Hprint.printlntDebugInfo(macProtocol, str);
+                    this.receiveCollision = false;//初次进入接收状态不会触发碰撞
+                    break;
             }
-            else{
-                //当前处于RECEIVING状态
-                receiveCollision = true;//再次进入接收状态会触发碰撞
-                double tempEndEventRECEIVINGexeTime = Simulator.getCurTime()+duration;
-                if (tempEndEventRECEIVINGexeTime < this.endEventRECEIVEexeTime){
-                    //新的接收结束时间提前于旧的接收结束时间，无需改变
-                    return;
-                }
-                cancelRECEVING();
-            }
+            this.stateSubChannel = StateSubChannel.RECEIVING;
             //添加RECEIVING结束
             endEventRECEIVEexeTime = Simulator.getCurTime()+duration;
             endEventRECEIVING = Simulator.addEvent(duration,
@@ -659,7 +696,6 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                             cancelRECEVING();
                         }
                     });
-
         }
         //获取状态
         public StateSubChannel getStateSubChannel(){
@@ -712,9 +748,6 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                 case RTS:
                     PacketRTS packetRTS = (PacketRTS)packet;
                     dTime = this.subChannel.getTimeTrans(packetRTS.getLengthData());
-                    /**
-                     * 此处时间不准确，应该由rts接收后进行判断需要退避多久。
-                     */
                     break;
                 default:
                     break;

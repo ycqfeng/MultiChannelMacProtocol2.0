@@ -1,11 +1,11 @@
 package han_multiChannelMacProtocol;
 
 /**
- * Created by ycqfeng on 2017/1/7.
+ * Created by ycqfeng on 2017/1/9.
  */
-public class TimeUnit {
-    public static double s = 1;
-    public static double ms = 0.001;
-    public static double us = 0.000001;
-    public static double ns = 0.000000001;
+public enum TimeUnit {
+    s,
+    ms,
+    us,
+    ns
 }

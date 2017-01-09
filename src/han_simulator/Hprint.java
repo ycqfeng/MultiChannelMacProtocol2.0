@@ -1,5 +1,11 @@
 package han_simulator;
 
+
+import han_multiChannelMacProtocol.TimeUnit;
+import han_multiChannelMacProtocol.TimeUnitValue;
+
+import java.text.DecimalFormat;
+
 /**
  * Created by ycqfeng on 2017/1/4.
  */
@@ -7,12 +13,39 @@ public class Hprint {
     public static Hprint hprint;
 
     private HprintNode[] nodes;
-    private int curTimeStringMaxLength = 0;
+    private static DecimalFormat timeFormatilize = new DecimalFormat("0.000000000");
 
+    //设置时间显示精度
+    public static void setTimeResolution(TimeUnit timeResolution){
+        switch (timeResolution){
+            case s:
+                timeFormatilize.applyPattern("0");
+                break;
+            case ms:
+                timeFormatilize.applyPattern("0.000");
+                break;
+            case us:
+                timeFormatilize.applyPattern("0.000000");
+                break;
+            case ns:
+                timeFormatilize.applyPattern("0.000000000");
+                break;
+            default:
+                break;
+        }
+    }
     //设置
     public static void setALLClose(){
         for (int i = 0 ; i < hprint.nodes.length ; i++){
             hprint.nodes[i].setPrintALL(false);
+        }
+    }
+    public static void setPrintAllInformation(IF_HprintNode node, boolean state){
+        for (int i = 0 ; i < hprint.nodes.length ; i++){
+            if (hprint.nodes[i].getInstance() == node){
+                hprint.nodes[i].setPrintALL(state);
+                return;
+            }
         }
     }
     public static void setPrintErrorInformation(IF_HprintNode node, boolean state){
@@ -178,17 +211,7 @@ public class Hprint {
     //获取当前时间
     public static String getCurrTime(){
         String str = "";
-        str += Simulator.getCurTime() + "s, ";
-        if (str.length() < hprint.curTimeStringMaxLength){
-            for (int i = 0 ; str.length() < hprint.curTimeStringMaxLength ; i++){
-                str = "~"+str;
-            }
-        }
-        else{
-            hprint.curTimeStringMaxLength = str.length();
-        }
-        //System.out.println(str.length());
-        //System.out.println(hprint.curTimeStringMaxLength);
+        str += hprint.timeFormatilize.format(Simulator.getCurTime())+"s, ";
         return str;
     }
 }

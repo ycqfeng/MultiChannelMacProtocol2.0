@@ -16,6 +16,9 @@ public class BackOff {
         this.time = 1;
         this.random = new Random();
     }
+    public double getMaxBackOffTime(){
+        return baseTime*random.nextInt(T);
+    }
     public double getBackOffTime(){
         int a = random.nextInt(time++);
         if (time > T){
