@@ -1,6 +1,5 @@
 package han_multiChannelMacProtocol;
 
-import com.sun.corba.se.spi.servicecontext.SendingContextServiceContext;
 import han_simulator.*;
 
 /**
@@ -116,6 +115,9 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
             Hprint.register(this);
             this.macProtocol = macProtocol;
         }
+        private void dropCollisionReceiveDataPacket(Packet packet){
+            Statistics.dropDataPacket(packet);
+        }
         //包目标是自己，进行接收
         public void receivePacketStart(SubChannel subChannel, Packet packet){
             if (mpSubChannelState.getStateSubChannel() == StateSubChannel.SENDING){
@@ -148,6 +150,9 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                     str = getStringUid()+"# ";
                     str += receivePacket.getStringUid()+" from ("+receivePacket.getPacketType()+")";
                     str += ", 接收发生碰撞";
+                    if (receivePacket.getPacketType()==PacketType.PACKET){
+                        dropCollisionReceiveDataPacket(receivePacket);
+                    }
                     Hprint.printlntDebugInfo(macProtocol, str);
                 }
                 else{
@@ -176,7 +181,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                             }
                             break;
                         case PACKET:
-                            Statistics.addPacket(receivePacket);
+                            Statistics.addDataPacket(receivePacket);
                             break;
                         default:
                             break;
@@ -258,6 +263,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
         }
         //重发次数上限，丢弃数据包
         private void dropDataPacket(){
+            Statistics.dropDataPacket(this.dataPacket);
             this.dataPacket = null;
             if (queue.isEmpty()){
                 stateMacProtocol = StateMacProtocol.IDLE;//队列空，回归空闲
