@@ -30,6 +30,9 @@ public class Hprint {
             case ns:
                 timeFormatilize.applyPattern("0.000000000");
                 break;
+            case ps:
+                timeFormatilize.applyPattern("0.000000000000");
+                break;
             default:
                 break;
         }

@@ -7,5 +7,6 @@ public enum TimeUnit {
     s,
     ms,
     us,
-    ns
+    ns,
+    ps
 }

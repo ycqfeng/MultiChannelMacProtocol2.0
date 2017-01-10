@@ -12,39 +12,35 @@ public class Main {
         Hprint.setTimeResolution(TimeUnit.ns);
 
         Simulator.init();
-        Simulator.setStopTime(10);
+        Simulator.setStopTime(100);
 
         SubChannel subChannel = new SubChannel();
         Simulator.register(subChannel);
 
-        MacProtocol source1 = new MacProtocol();
-        MacProtocol source2 = new MacProtocol();
+        MacProtocol[] source = new MacProtocol[5];
+        for (int i = 0 ; i < source.length ; i++){
+            source[i] = new MacProtocol();
+            Simulator.register(source[i]);
+            Hprint.register(source[i]);
+            source[i].setSubChannel(subChannel);
+        }
         MacProtocol destination = new MacProtocol();
-
-        Simulator.register(source1);
-        Simulator.register(source2);
         Simulator.register(destination);
-        Hprint.register(source1);
-        Hprint.register(source2);
         Hprint.register(destination);
-        source1.setSubChannel(subChannel);
-        source2.setSubChannel(subChannel);
         destination.setSubChannel(subChannel);
 
-        //Hprint.setPrintAllInformation(source1, false);
-        //Hprint.setPrintAllInformation(destination, false);
+        int length = 500;
+        Packet packet;
+        for (int i = 0 ; i < source.length ; i++){
+            packet = new Packet(length, PacketType.PACKET);
+            packet.setDestinationUid(destination.getUid());
+            source[i].enQueue(packet);
+        }
 
-        Packet packet1 = new Packet(100, PacketType.PACKET);
-        packet1.setDestinationUid(destination.getUid());
-        source1.enQueue(packet1);
-
-        Packet packet2 = new Packet(100, PacketType.PACKET);
-        packet2.setDestinationUid(destination.getUid());
-        source2.enQueue(packet2);
-
-
-
+        Statistics.setSumTime(100);
 
         Simulator.start();
+
+        Statistics.print();
     }
 }

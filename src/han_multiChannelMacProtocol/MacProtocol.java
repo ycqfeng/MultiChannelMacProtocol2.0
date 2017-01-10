@@ -175,6 +175,9 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                                 mpSendPacket.sendDataPacket(getUid(), receivePacket.getSourceUid(), subChannel);
                             }
                             break;
+                        case PACKET:
+                            Statistics.addPacket(receivePacket);
+                            break;
                         default:
                             break;
                     }
@@ -628,17 +631,25 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
         }
         //消除RECEVING状态
         public void cancelRECEVING(){
-            System.out.println("消除接收状态");
             this.stateSubChannel = StateSubChannel.IDLE;
             Simulator.deleteEvent(endEventRECEIVING);
             this.endEventRECEIVING = -1;
             this.endEventRECEIVEexeTime = -1;
         }
+        public void deleteRECEIVING(){
+            this.stateSubChannel = StateSubChannel.IDLE;
+            this.endEventRECEIVING = -1;
+            this.endEventRECEIVEexeTime = -1;
+        }
         //消除SENDING状态
         public void cancelSENDING(){
-            System.out.println("消除发送状态");
             this.stateSubChannel = StateSubChannel.IDLE;
             Simulator.deleteEvent(endEventSENDING);
+            this.endEventSENDING = -1;
+            this.endEventSENDINGexeTime = -1;
+        }
+        public void deleteSENDING(){
+            this.stateSubChannel = StateSubChannel.IDLE;
             this.endEventSENDING = -1;
             this.endEventSENDINGexeTime = -1;
         }
@@ -647,21 +658,36 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
             /**
              * 需要理顺状态转移的问题，目前状态转移有问题。
              */
+            String str;
+            double tempEndEventSENDINGexeTime = Simulator.getCurTime()+duration;
             switch (this.stateSubChannel){
                 case SENDING:
                     //已经处于发送状态
-                    double tempEndEventSENDINGexeTime = Simulator.getCurTime()+duration;
                     if (tempEndEventSENDINGexeTime <= this.endEventSENDINGexeTime){
-                        //新的接收结束时间提前于旧的接收结束时间，无需改变
+                        //新的接收结束时间提前于旧的发送结束时间，无需改变
                         return;
                     }
                     cancelSENDING();
                     break;
-                case IDLE:
                 case RECEIVING:
+                    if (tempEndEventSENDINGexeTime < this.endEventRECEIVEexeTime){
+                        //新的发送结束时间提前于旧的接收结束时间，需要回归接收状态，不能删除结束状态
+                        this.returnToRECEVING = true;
+                    }
+                    else {
+                        //新的发送结束时间后于旧的接收结束时间，需要删除接收结束事件
+                        this.returnToRECEVING = false;
+                        cancelRECEVING();
+                    }
+                    str = getStringUid()+"# ";
+                    str += this.subChannel.getStringUid()+"["+stateSubChannel+"]";
+                    str += "->["+StateSubChannel.SENDING+"]";
+                    Hprint.printlntDebugInfo(macProtocol, str);
+                    break;
+                case IDLE:
                 case NAV:
                     this.returnToRECEVING = false;
-                    String str = getStringUid()+"# ";
+                    str = getStringUid()+"# ";
                     str += this.subChannel.getStringUid()+"["+stateSubChannel+"]";
                     str += "->["+StateSubChannel.SENDING+"]";
                     Hprint.printlntDebugInfo(macProtocol, str);
@@ -682,7 +708,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                                 str += "->["+StateSubChannel.IDLE+"]";
                             }
                             Hprint.printlntDebugInfo(macProtocol, str);
-                            cancelSENDING();
+                            deleteSENDING();
                             if (returnToRECEVING){
                                 stateSubChannel = StateSubChannel.RECEIVING;
                             }
@@ -720,9 +746,9 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                     str += "->["+StateSubChannel.RECEIVING+"]";
                     Hprint.printlntDebugInfo(macProtocol, str);
                     this.receiveCollision = false;//初次进入接收状态不会触发碰撞
+                    this.stateSubChannel = StateSubChannel.RECEIVING;
                     break;
             }
-            this.stateSubChannel = StateSubChannel.RECEIVING;
             //添加RECEIVING结束
             endEventRECEIVEexeTime = Simulator.getCurTime()+duration;
             endEventRECEIVING = Simulator.addEvent(duration,
@@ -733,7 +759,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                             str += subChannel.getStringUid()+"["+stateSubChannel+"]";
                             str += "->["+StateSubChannel.IDLE+"]";
                             Hprint.printlntDebugInfo(macProtocol, str);
-                            cancelRECEVING();
+                            deleteRECEIVING();
                         }
                     });
         }
