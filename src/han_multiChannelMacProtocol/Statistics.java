@@ -6,32 +6,32 @@ package han_multiChannelMacProtocol;
 public class Statistics {
     private static Statistics statistics = new Statistics();
 
-    private int numDataPacketBit;
-    private int numDataPacket;
+    private int numReceiveDataPacketBit;
+    private int numReceiveDataPacket;
     private double sumTime;
 
     public Statistics(){
-        this.numDataPacketBit = 0;
+        this.numReceiveDataPacketBit = 0;
     }
     public static void addPacket(Packet packet){
-        statistics.numDataPacketBit += packet.getLength();
-        statistics.numDataPacket += 1;
+        statistics.numReceiveDataPacketBit += packet.getLength();
+        statistics.numReceiveDataPacket += 1;
     }
     public static int getNumDataPacketBit(){
-        return Statistics.statistics.numDataPacketBit;
+        return Statistics.statistics.numReceiveDataPacketBit;
     }
     public static void setSumTime(double sumTime){
         Statistics.statistics.sumTime = sumTime;
     }
     public static void print(){
         String str;
-        str = "Packet Bit : " + statistics.numDataPacketBit;
+        str = "Packet Bit : " + statistics.numReceiveDataPacketBit;
         System.out.println(str);
 
-        str = "Packet Num : " + statistics.numDataPacket;
+        str = "Packet Num : " + statistics.numReceiveDataPacket;
         System.out.println(str);
 
-        str = "bps : " + statistics.numDataPacketBit/statistics.sumTime/1000;
+        str = "bps : " + statistics.numReceiveDataPacketBit/statistics.sumTime/1000;
         str += "Kbps";
         System.out.println(str);
     }

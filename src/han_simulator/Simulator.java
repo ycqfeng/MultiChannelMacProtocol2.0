@@ -13,6 +13,7 @@ public class Simulator implements IF_HprintNode{
     private double stopTime;
     //事件链表
     private Event eventQueueHead;
+    private Event curEvent;
     //注册实体接口
     private IF_simulator[] interfaces;
     //结束标志
@@ -147,6 +148,10 @@ public class Simulator implements IF_HprintNode{
         return simulator.stopTime;
     }
 
+    public static int getCurrEventUid(){
+        return simulator.curEvent.getUid();
+    }
+
     //准备阶段
     public static void start(){
         //开始事件
@@ -188,7 +193,7 @@ public class Simulator implements IF_HprintNode{
             Hprint.printlnErrorInfo(simulator, "队列中无事件。");
         }
 
-        Event curEvent;
+        //Event curEvent;
         double progress;
         double difProgress = 1;
         long startPoint = System.currentTimeMillis();

@@ -693,6 +693,9 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                     Hprint.printlntDebugInfo(macProtocol, str);
                     break;
             }
+            if (endEventSENDING != -1){
+                cancelSENDING();
+            }
             this.stateSubChannel = StateSubChannel.SENDING;
             endEventSENDINGexeTime = Simulator.getCurTime()+duration;
             endEventSENDING = Simulator.addEvent(duration,
@@ -708,7 +711,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
                                 str += "->["+StateSubChannel.IDLE+"]";
                             }
                             Hprint.printlntDebugInfo(macProtocol, str);
-                            deleteSENDING();
+                            deleteSENDING();//回归IDLE状态
                             if (returnToRECEVING){
                                 stateSubChannel = StateSubChannel.RECEIVING;
                             }
