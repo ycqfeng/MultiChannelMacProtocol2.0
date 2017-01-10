@@ -5,6 +5,7 @@ import han_simulator.*;
 /**
  * Created by ycqfeng on 2017/1/4.
  */
+/*
 public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
     private static int uidBase = 0;
     private static int RTSReTrans = 3;
@@ -111,7 +112,7 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
 
     /**
      * 内部类
-     */
+
     //开始发送Packet
     class NetDeviceSendPacketBegin implements IF_Event{
         NetDevice netDevice;
@@ -324,3 +325,4 @@ public class NetDevice implements IF_simulator, IF_HprintNode, IF_Channel{
         }
     }
 }
+*/

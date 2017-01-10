@@ -16,7 +16,7 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
     double delay;
     Random random;
 
-    IF_Channel[] devices;
+    //IF_Channel[] devices;
     IF_Channel[] macProtocols;
 
     public SubChannel(){
@@ -49,7 +49,7 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
         }
     }
 
-    public void register(IF_Channel device){
+    /*public void register(IF_Channel device){
         if (this.devices == null){
             this.devices = new IF_Channel[1];
             this.devices[0] = device;
@@ -60,7 +60,7 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
             temp[this.devices.length] = device;
             this.devices = temp;
         }
-    }
+    }*/
 
     public void setBps(double bps){
         this.bps = bps;
@@ -87,7 +87,7 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
         }
         return trans;
     }
-    public double send(NetDevice from, NetDevice to, Packet packet){
+    /*public double send(NetDevice from, NetDevice to, Packet packet){
         double trans = getTimeTrans(packet);
         for (int i = 0 ; i < this.devices.length ; i++){
             if (this.devices[i] != from){
@@ -96,8 +96,8 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
             }
         }
         return trans;
-    }
-    class SendToNetDevice implements IF_Event{
+    }*/
+    /*class SendToNetDevice implements IF_Event{
         NetDevice from;
         NetDevice to;
         Packet packet;
@@ -113,5 +113,5 @@ public class SubChannel implements IF_simulator, IF_HprintNode{
         public void run(){
             this.to.receive(from, to, subChannel, packet);
         }
-    }
+    }*/
 }

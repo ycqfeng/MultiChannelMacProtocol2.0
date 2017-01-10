@@ -11,7 +11,7 @@ public class Packet {
     protected int length;//长度
     protected int sourceUid;
     protected int destinationUid;
-    protected NetDevice to;
+    //protected NetDevice to;
 
     //构造函数
     public Packet(){
@@ -19,12 +19,12 @@ public class Packet {
         this.packetType = PacketType.PACKET;
         this.length = 1;
     }
-    public void setToNetDevice(NetDevice to){
+    /*public void setToNetDevice(NetDevice to){
         this.to = to;
     }
     public NetDevice getToNetDevice(){
         return to;
-    }
+    }*/
     public Packet(int length){
         this.uid = uidBase++;
         this.packetType = PacketType.PACKET;
