@@ -1,6 +1,7 @@
 package han_multiChannelMacProtocol;
 
 import han_simulator.*;
+import org.omg.CORBA.portable.IDLEntity;
 
 /**
  * Created by ycqfeng on 2017/1/6.
@@ -15,7 +16,7 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
     private double timeSIFS = TimeUnitValue.us*10;//SIFS时间
 
     //状态
-    //private MPSubChannel mpSubChannel;
+    private MPSubChannel mpSubChannel;
     private MPSubChannelState mpSubChannelState;
     private StateMacProtocol stateMacProtocol;
     private MPSendPacket mpSendPacket;
@@ -805,6 +806,171 @@ public class MacProtocol implements IF_simulator, IF_HprintNode, IF_Channel{
         public void setSubChannel(SubChannel subChannel, StateSubChannel state) {
             this.subChannel = subChannel;
             this.stateSubChannel = state;
+        }
+    }
+    class MPSubChannel implements IF_HprintNode{
+        /**
+         * 本类要完善输出控制
+         */
+        private MacProtocol selfMacProtocol;//协议自身
+        private SubChannel subChannel;//信道
+
+        private StateSubChannel stateTransmitter;//发射机状态
+        private StateSubChannel stateReceiver;//接收机状态
+        private double numReceiving;//正在接收的包数目
+        private boolean isReceiveCollision;//接收碰撞
+
+        private int endEventUidTransmitterSENDING;//发送状态结束事件uid
+        private double endEventTimeTransmitterSENDING;//发送状态结束时间
+        private StateSubChannel endEventStateTransmitterSENDING;//发送状态结束时转入的状态
+
+        //对外状态转移接口
+        public void turnToSENDING(double duration){
+            //处于空闲状态
+            if (this.stateTransmitter == StateSubChannel.IDLE){
+                this.endEventStateTransmitterSENDING = StateSubChannel.IDLE;
+                this.endEventTimeTransmitterSENDING = Simulator.getCurTime()+duration;
+                this.endEventUidTransmitterSENDING = Simulator.addEvent(duration, new IF_Event() {
+                    @Override
+                    public void run() {
+                        endEventTransmitterSENDING();
+                    }
+                });
+                this.transmitterTurnToSENDING();
+                return;
+            }
+            //处于发送状态
+            else if (this.stateTransmitter == StateSubChannel.SENDING){
+                if (this.endEventTimeTransmitterSENDING >= Simulator.getCurTime()+duration){
+                    return;
+                }
+                else{
+                    this.deleteEndEventTransmitterSENDING();
+                    this.endEventStateTransmitterSENDING = StateSubChannel.IDLE;
+                    this.endEventTimeTransmitterSENDING = Simulator.getCurTime()+duration;
+                    this.endEventUidTransmitterSENDING = Simulator.addEvent(duration, new IF_Event() {
+                        @Override
+                        public void run() {
+                            endEventTransmitterSENDING();
+                        }
+                    });
+                    return;
+                }
+            }
+            //处于NAV状态
+            else if (this.stateTransmitter == StateSubChannel.NAV){
+                //错误，NAV状态不允许转入SENDING
+                String str = getStringMPSubChannelUid()+"# ";
+                str += subChannel.getStringUid()+" Transmitter State: ";
+                str += "NAV状态不允许转入SENDING状态";
+                Hprint.printlntErrorInfo(selfMacProtocol.mpSubChannel,str);
+            }
+            //处于其他状态
+            else{
+                String str = getStringMPSubChannelUid()+"# ";
+                str += subChannel.getStringUid()+" Transmitter State: ";
+                str += "Transmitter处于错误状态";
+                Hprint.printlntErrorInfo(selfMacProtocol.mpSubChannel,str);
+            }
+        }
+        //结束事件接口
+        private void endEventTransmitterSENDING(){
+            if (endEventStateTransmitterSENDING == StateSubChannel.IDLE){
+                String str = getStringMPSubChannelUid()+"# ";
+                str += subChannel.getStringUid()+" Transmitter State[end]: ";
+                str += stateTransmitter+"->"+StateSubChannel.IDLE;
+                Hprint.printlntDebugInfo(selfMacProtocol.mpSubChannel,str);
+                transmitterTurnToIDLE();
+                clearEndEventTransmitterSENDING();
+                return;
+            }
+            else if (endEventStateTransmitterSENDING == StateSubChannel.NAV){
+                String str = getStringMPSubChannelUid()+"# ";
+                str += subChannel.getStringUid()+" Transmitter State[end]: ";
+                str += stateTransmitter+"->"+StateSubChannel.NAV;
+                Hprint.printlntDebugInfo(selfMacProtocol.mpSubChannel,str);
+                transmitterTurnToNAV();
+                clearEndEventTransmitterSENDING();
+                return;
+            }
+            else {
+                String str = getStringMPSubChannelUid()+"# ";
+                str += "endEventStateTransmitterSENDING错误";
+                Hprint.printlntErrorInfo(selfMacProtocol.mpSubChannel, str);
+            }
+        }
+        //删除结束事件
+        private void deleteEndEventTransmitterSENDING(){
+            Simulator.deleteEvent(this.endEventUidTransmitterSENDING);
+            this.clearEndEventTransmitterSENDING();
+        }
+        //清除结束状态
+        private void clearEndEventTransmitterSENDING(){
+            this.endEventStateTransmitterSENDING = StateSubChannel.IDLE;
+            this.endEventTimeTransmitterSENDING = -1;
+            this.endEventUidTransmitterSENDING = -1;
+        }
+
+        //统一状态转移接口
+        private void transmitterTurnToIDLE(){
+            String str = getStringMPSubChannelUid()+"# ";
+            str += this.subChannel.getStringUid()+" Transmitter State: ";
+            str += this.stateTransmitter+"->"+StateSubChannel.IDLE;
+            Hprint.printlntDebugInfo(this, str);
+            this.stateTransmitter = StateSubChannel.IDLE;
+        }
+        private void transmitterTurnToSENDING(){
+            String str = getStringMPSubChannelUid()+"# ";
+            str += this.subChannel.getStringUid()+" Transmitter State: ";
+            str += this.stateTransmitter+"->"+StateSubChannel.SENDING;
+            Hprint.printlntDebugInfo(this,str);
+            this.stateTransmitter = StateSubChannel.SENDING;
+        }
+        private void transmitterTurnToNAV(){
+            String str = getStringMPSubChannelUid()+"# ";
+            str += this.subChannel.getStringUid()+" Transmitter State: ";
+            str += this.stateTransmitter+"->"+StateSubChannel.NAV;
+            Hprint.printlntDebugInfo(this,str);
+            this.stateTransmitter = StateSubChannel.NAV;
+        }
+        private void receiverTurnToIDLE(){
+            String str = getStringMPSubChannelUid()+"# ";
+            str += this.subChannel.getStringUid()+" Receiver State: ";
+            str += this.stateReceiver+"->"+StateSubChannel.IDLE;
+            Hprint.printlntDebugInfo(this,str);
+            this.stateReceiver = StateSubChannel.IDLE;
+        }
+        private void receiverTurnToRECEIVING(){
+            String str = getStringMPSubChannelUid()+"# ";
+            str += this.subChannel.getStringUid()+" Receiver State: ";
+            str += this.stateReceiver+"->"+StateSubChannel.RECEIVING;
+            Hprint.printlntDebugInfo(this,str);
+            this.stateReceiver = StateSubChannel.RECEIVING;
+        }
+        //获取位置字符串
+        public String getStringMPSubChannelUid(){
+            return getStringUid()+"/MPSubChannel";
+        }
+
+        /**
+         * 设置信道
+         * @param subChannel
+         */
+        public void setSubChannel(SubChannel subChannel){
+            this.subChannel = subChannel;
+        }
+        /**
+         * 构造函数
+         * @param macProtocol 协议本身
+         */
+        public MPSubChannel(MacProtocol macProtocol){
+            Hprint.register(this);
+            this.selfMacProtocol = macProtocol;
+
+            this.stateTransmitter = StateSubChannel.IDLE;
+            this.stateReceiver = StateSubChannel.IDLE;
+            this.numReceiving = 0;
+            this.isReceiveCollision = false;
         }
     }
         /*//统一转换接口
